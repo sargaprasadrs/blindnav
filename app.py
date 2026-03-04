@@ -247,11 +247,12 @@ def navigate():
                 n += 1
                 nav.append({
                     "n":           n,
-                    "instruction": instr,
-                    "meters":      round(s["distance"], 1),
-                    "steps":       steps(s["distance"]),
+                    "action":      instr,  # Changed from instruction to action
+                    "distance":    round(s["distance"], 1),  # Changed from meters to distance  
+                    "step_count":  steps(s["distance"]),  # Changed from steps to step_count
                     "type":        s["maneuver"].get("type", ""),
-                    "loc":         s["maneuver"].get("location", [])
+                    "lat":         s["maneuver"]["location"][1] if len(s["maneuver"].get("location", [])) >= 2 else None,
+                    "lng":         s["maneuver"]["location"][0] if len(s["maneuver"].get("location", [])) >= 2 else None
                 })
 
         summary = (f"Route to Painavu found. "

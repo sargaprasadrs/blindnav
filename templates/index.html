@@ -427,20 +427,21 @@ kbd{
        aria-checked="false" aria-label="Start navigation to Painavu" tabindex="0">
     <div>
       <div class="toggle-label">Navigate to Painavu</div>
-      <div class="toggle-sub" id="toggle-status">Tap to start</div>
+      <div class="toggle-sub" id="toggle-status">Tap to start live navigation</div>
     </div>
     <div class="toggle-track"></div>
   </div>
 
-  <!-- Nav panel -->
-  <div class="nav-panel" id="nav-panel">
+  <!-- Live Navigation Status -->
+  <div id="live-status" class="output" style="display:none;">
+    <div id="live-text">Navigation active</div>
+    <div id="progress-info" style="font-size:13px;margin-top:4px;color:var(--text-dim);"></div>
+  </div>
+
+  <!-- Nav panel (hidden for blind navigation) -->
+  <div class="nav-panel" id="nav-panel" style="display:none;">
     <div class="nav-summary" id="nav-summary"></div>
     <div class="nav-current" id="nav-current" aria-live="assertive"></div>
-    <div class="nav-controls">
-      <button class="nav-btn" onclick="prevStep()">Previous</button>
-      <button class="nav-btn" onclick="repeatStep()">Repeat</button>
-      <button class="nav-btn" onclick="nextStep()">Next</button>
-    </div>
     <div class="step-list" id="step-list"></div>
   </div>
 
@@ -475,6 +476,23 @@ let curLat = null, curLng = null;
 let navData = [], curStep = -1, navigating = false;
 let watchId = null;
 let map, curMarker, destMarker, routeLine, mapReady = false;
+
+// Live navigation state
+let liveNavigation = {
+  active: false,
+  lastPosition: null,
+  stepDistance: 0,
+  totalSteps: 0,
+  currentInstruction: null,
+  nextTurnDistance: 0,
+  nextTurnDirection: null,
+  lastAnnouncement: 0,
+  courseDeviation: 0,
+  trackingInterval: null,
+  stepUpdateInterval: null,
+  stepLength: 0.65, // meters per step
+  alertDistances: [100, 50, 30, 20, 10, 5, 3] // distances for turn alerts
+};
 
 const synth = window.speechSynthesis;
 
@@ -537,16 +555,28 @@ function startGPS() {
   }
   watchId = navigator.geolocation.watchPosition(
     function(pos) {
-      curLat = pos.coords.latitude;
-      curLng = pos.coords.longitude;
+      var newLat = pos.coords.latitude;
+      var newLng = pos.coords.longitude;
+      
+      // Update position
+      if (curLat !== null && curLng !== null && liveNavigation.active) {
+        updateLiveNavigation(newLat, newLng);
+      }
+      
+      curLat = newLat;
+      curLng = newLng;
       setGPS(curLat.toFixed(5) + ", " + curLng.toFixed(5), "ok");
       updateMapPos();
-      if (navigating) checkProximity();
+      
+      if (navigating && !liveNavigation.active) checkProximity();
     },
     function(err) {
       setGPS("GPS unavailable (code " + err.code + ") — use test map below", "err");
+      if (liveNavigation.active) {
+        speak("GPS signal lost. Please ensure location services are enabled.");
+      }
     },
-    {enableHighAccuracy:true, maximumAge:3000, timeout:15000}
+    {enableHighAccuracy:true, maximumAge:2000, timeout:10000}
   );
 }
 
@@ -619,7 +649,7 @@ async function startNav() {
 
   var row = document.getElementById("nav-toggle");
   var status = document.getElementById("toggle-status");
-  var panel = document.getElementById("nav-panel");
+  var liveStatus = document.getElementById("live-status");
 
   row.classList.add("active");
   row.setAttribute("aria-checked", "true");
@@ -652,17 +682,21 @@ async function startNav() {
     buildStepList();
     curStep = 0;
     navigating = true;
-    status.textContent = "Active — " + navData.length + " steps";
-    panel.classList.add("visible");
-    showStep();
-
-    speak(d.summary);
-    var delay = Math.min(d.summary.length * 55, 12000);
+    
+    // Start live navigation
+    initLiveNavigation(d);
+    
+    status.textContent = "Live navigation active";
+    liveStatus.style.display = "block";
+    
+    speak(d.summary + " Live navigation started. You will receive automatic directions as you walk.");
+    
+    // Start with first instruction after summary
     setTimeout(function(){
-      if (navigating && curStep === 0) {
-        speak("Step 1. " + navData[0].instruction, false);
+      if (liveNavigation.active && navData.length > 0) {
+        announceCurrentStep();
       }
-    }, delay);
+    }, 8000);
 
   } catch(e) {
     speak("Failed to get route. " + e.message);
@@ -677,11 +711,16 @@ function stopNav() {
   navigating = false;
   curStep = -1;
   navData = [];
+  
+  // Stop live navigation
+  stopLiveNavigation();
+  
   var row = document.getElementById("nav-toggle");
   row.classList.remove("active");
   row.setAttribute("aria-checked", "false");
-  document.getElementById("toggle-status").textContent = "Tap to start";
+  document.getElementById("toggle-status").textContent = "Tap to start live navigation";
   document.getElementById("nav-panel").classList.remove("visible");
+  document.getElementById("live-status").style.display = "none";
   if (synth) synth.cancel();
   speak("Navigation stopped.");
 }
@@ -696,9 +735,8 @@ function buildStepList() {
     div.id = "si-" + i;
     div.innerHTML =
       '<div class="snum">Step ' + s.n + '</div>' +
-      '<div class="sinstr">' + s.instruction + '</div>' +
-      '<div class="smeta">' + s.meters + 'm — approximately ' + s.steps + ' steps</div>';
-    div.onclick = function(){goToStep(i)};
+      '<div class="sinstr">' + s.action + '</div>' +
+      '<div class="smeta">' + (s.distance ? Math.round(s.distance) : 0) + 'm — approximately ' + (s.step_count || 0) + ' steps</div>';
     box.appendChild(div);
   });
 }
@@ -707,7 +745,7 @@ function showStep() {
   if (curStep < 0 || curStep >= navData.length) return;
   var s = navData[curStep];
   document.getElementById("nav-current").textContent =
-    "Step " + s.n + " of " + navData.length + ": " + s.instruction;
+    "Step " + s.n + " of " + navData.length + ": " + s.action;
   var items = document.querySelectorAll(".step-item");
   for (var i = 0; i < items.length; i++) {
     items[i].classList.toggle("active", i === curStep);
@@ -716,23 +754,24 @@ function showStep() {
   if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
 }
 
+// Navigation control functions (disabled for live navigation)
 function nextStep() {
-  if (!navigating) return;
+  if (!navigating || liveNavigation.active) return;
   if (curStep < navData.length - 1) {
     curStep++;
     showStep();
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
   } else {
     speak("That was the last step. You should be at Painavu.");
   }
 }
 
 function prevStep() {
-  if (!navigating) return;
+  if (!navigating || liveNavigation.active) return;
   if (curStep > 0) {
     curStep--;
     showStep();
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
   } else {
     speak("This is the first step.");
   }
@@ -740,26 +779,237 @@ function prevStep() {
 
 function repeatStep() {
   if (!navigating || curStep < 0) return;
-  speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+  if (liveNavigation.active) {
+    // In live navigation, repeat current instruction
+    announceCurrentStep();
+  } else {
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
+  }
 }
 
 function goToStep(i) {
-  if (!navigating) return;
+  if (!navigating || liveNavigation.active) return;
   curStep = i;
   showStep();
-  speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+  speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
 }
 
-// ── Auto-advance ─────────────────────────────────
+// ── Live Navigation System ──────────────────────
+function initLiveNavigation(routeData) {
+  liveNavigation.active = true;
+  liveNavigation.lastPosition = {lat: curLat, lng: curLng};
+  liveNavigation.stepDistance = 0;
+  liveNavigation.totalSteps = 0;
+  liveNavigation.currentInstruction = navData[0];
+  liveNavigation.lastAnnouncement = Date.now();
+  liveNavigation.courseDeviation = 0;
+  
+  calculateNextTurn();
+  startLiveTracking();
+  updateLiveStatus();
+}
+
+function stopLiveNavigation() {
+  liveNavigation.active = false;
+  if (liveNavigation.trackingInterval) {
+    clearInterval(liveNavigation.trackingInterval);
+    liveNavigation.trackingInterval = null;
+  }
+  if (liveNavigation.stepUpdateInterval) {
+    clearInterval(liveNavigation.stepUpdateInterval);
+    liveNavigation.stepUpdateInterval = null;
+  }
+}
+
+function startLiveTracking() {
+  // Update live status every 2 seconds
+  liveNavigation.trackingInterval = setInterval(function() {
+    if (liveNavigation.active) {
+      updateLiveStatus();
+      checkForAnnouncements();
+    }
+  }, 2000);
+  
+  // Update step progress every 5 seconds
+  liveNavigation.stepUpdateInterval = setInterval(function() {
+    if (liveNavigation.active) {
+      announceProgress();
+    }
+  }, 5000);
+}
+
+function updateLiveNavigation(newLat, newLng) {
+  if (!liveNavigation.active || !liveNavigation.lastPosition) return;
+  
+  // Calculate distance moved
+  var moved = haversine(
+    liveNavigation.lastPosition.lat, liveNavigation.lastPosition.lng,
+    newLat, newLng
+  );
+  
+  // Update step counters
+  liveNavigation.stepDistance += moved;
+  var newSteps = Math.floor(liveNavigation.stepDistance / liveNavigation.stepLength);
+  if (newSteps > liveNavigation.totalSteps) {
+    liveNavigation.totalSteps = newSteps;
+  }
+  
+  // Check if reached current step destination
+  checkStepCompletion(newLat, newLng);
+  
+  // Check course deviation
+  checkCourseDeviation(newLat, newLng);
+  
+  // Update position
+  liveNavigation.lastPosition = {lat: newLat, lng: newLng};
+}
+
+function checkStepCompletion(lat, lng) {
+  if (curStep < 0 || curStep >= navData.length) return;
+  
+  var currentStep = navData[curStep];
+  if (!currentStep || !currentStep.lat || !currentStep.lng) return;
+  
+  var distanceToStep = haversine(lat, lng, currentStep.lat, currentStep.lng);
+  
+  // If within 15 meters of step point, advance
+  if (distanceToStep < 15) {
+    advanceToNextStep();
+  }
+}
+
+function advanceToNextStep() {
+  if (curStep >= navData.length - 1) {
+    // Reached destination
+    speak("Congratulations! You have arrived at Painavu!");
+    stopNav();
+    return;
+  }
+  
+  curStep++;
+  liveNavigation.currentInstruction = navData[curStep];
+  liveNavigation.stepDistance = 0; // Reset step counter for new segment
+  calculateNextTurn();
+  announceCurrentStep();
+  updateLiveStatus();
+}
+
+function calculateNextTurn() {
+  if (curStep < 0 || curStep >= navData.length) return;
+  
+  var current = navData[curStep];
+  liveNavigation.nextTurnDistance = current.distance || 0;
+  liveNavigation.nextTurnDirection = current.action || "continue";
+}
+
+function announceCurrentStep() {
+  if (!liveNavigation.active || curStep < 0 || curStep >= navData.length) return;
+  
+  var step = navData[curStep];
+  var announcement = step.action;
+  
+  if (step.distance && step.distance > 10) {
+    var stepCount = Math.round(step.distance / liveNavigation.stepLength);
+    announcement += " in " + stepCount + " steps";
+  }
+  
+  speak(announcement);
+  liveNavigation.lastAnnouncement = Date.now();
+}
+
+function checkForAnnouncements() {
+  if (!liveNavigation.active || !liveNavigation.nextTurnDistance) return;
+  
+  var timeSinceLastAnnouncement = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
+  var remainingDistance = Math.max(0, liveNavigation.nextTurnDistance - liveNavigation.stepDistance);
+  var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
+  
+  // Announce at specific distances
+  for (var i = 0; i < liveNavigation.alertDistances.length; i++) {
+    var alertDistance = liveNavigation.alertDistances[i];
+    var alertSteps = Math.round(alertDistance / liveNavigation.stepLength);
+    
+    if (remainingSteps <= alertSteps && remainingSteps > 0 && timeSinceLastAnnouncement > 10) {
+      if (alertSteps <= 3) {
+        speak(liveNavigation.nextTurnDirection + " in " + alertSteps + " steps");
+      } else if (alertSteps <= 10) {
+        speak("Prepare to " + liveNavigation.nextTurnDirection.toLowerCase() + " in " + alertSteps + " steps");
+      } else {
+        speak("In " + alertSteps + " steps, " + liveNavigation.nextTurnDirection.toLowerCase());
+      }
+      liveNavigation.lastAnnouncement = Date.now();
+      break;
+    }
+  }
+}
+
+function announceProgress() {
+  if (!liveNavigation.active || !liveNavigation.nextTurnDistance) return;
+  
+  var timeSinceLastAnnouncement = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
+  if (timeSinceLastAnnouncement < 20) return; // Don't interrupt recent announcements
+  
+  var remainingDistance = Math.max(0, liveNavigation.nextTurnDistance - liveNavigation.stepDistance);
+  var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
+  
+  if (remainingSteps > 20 && remainingDistance > 50) {
+    speak("Continue straight for " + remainingSteps + " steps");
+    liveNavigation.lastAnnouncement = Date.now();
+  }
+}
+
+function checkCourseDeviation(lat, lng) {
+  // Simple course deviation check - could be enhanced with more sophisticated logic
+  if (curStep < 0 || curStep >= navData.length) return;
+  
+  var currentStep = navData[curStep];
+  if (!currentStep.lat || !currentStep.lng) return;
+  
+  var distanceToRoute = haversine(lat, lng, currentStep.lat, currentStep.lng);
+  
+  // If more than 50 meters off route, give correction
+  if (distanceToRoute > 50) {
+    var timeSinceLastAlert = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
+    if (timeSinceLastAlert > 30) {
+      speak("Alert: You may be off course. The correct direction is " + currentStep.action.toLowerCase());
+      liveNavigation.lastAnnouncement = Date.now();
+    }
+  }
+}
+
+function updateLiveStatus() {
+  if (!liveNavigation.active) return;
+  
+  var liveText = document.getElementById("live-text");
+  var progressInfo = document.getElementById("progress-info");
+  
+  if (curStep >= 0 && curStep < navData.length) {
+    var step = navData[curStep];
+    var remainingDistance = Math.max(0, (step.distance || 0) - liveNavigation.stepDistance);
+    var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
+    var totalStepsInSegment = Math.round((step.distance || 0) / liveNavigation.stepLength);
+    
+    liveText.textContent = "Step " + (curStep + 1) + " of " + navData.length + ": " + step.action;
+    
+    if (remainingSteps > 0) {
+      progressInfo.textContent = "Continue for " + remainingSteps + " more steps " + 
+        "(" + liveNavigation.totalSteps + " total steps taken)";
+    } else {
+      progressInfo.textContent = "Approaching next instruction...";
+    }
+  }
+}
+
+// ── Legacy Auto-advance (fallback) ──────────────
 function checkProximity() {
-  if (!navigating || curStep < 0 || curStep >= navData.length - 1) return;
+  if (!navigating || liveNavigation.active || curStep < 0 || curStep >= navData.length - 1) return;
   var next = navData[curStep + 1];
-  if (!next.loc || next.loc.length < 2) return;
-  var d = haversine(curLat, curLng, next.loc[1], next.loc[0]);
+  if (!next.lat || !next.lng) return;
+  var d = haversine(curLat, curLng, next.lat, next.lng);
   if (d < 15) {
     curStep++;
     showStep();
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
   }
 }
 
@@ -859,7 +1109,8 @@ window.addEventListener("load", function() {
   startGPS();
   setTimeout(function(){
     speak("Welcome to BlindNav. Your destination is Painavu, Idukki District, Kerala. " +
-          "Press Where Am I to hear your location. Toggle the switch to start navigation.");
+          "Press Where Am I to hear your location. Toggle the switch to start live navigation. " +
+          "During navigation, you will receive automatic step-by-step voice directions as you walk.");
   }, 800);
 });
 </script>
