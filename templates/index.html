@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BlindNav — Painavu</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:          #111;
+  --surface:     #1a1a1a;
+  --surface-2:   #222;
+  --border:      #333;
+  --text:        #ddd;
+  --text-dim:    #888;
+  --accent:      #e0a800;
+  --accent-dim:  #a07800;
+  --green:       #2ecc71;
+  --red:         #e74c3c;
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.5;
+  font-size:17px;
+}
+
+.container{
+  max-width:520px;
+  margin:0 auto;
+  padding:16px;
+}
+
+/* ── Header ── */
+.header{
+  text-align:center;
+  padding:20px 0 12px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:16px;
+}
+.header h1{
+  font-size:22px;
+  font-weight:700;
+  letter-spacing:1px;
+  color:var(--text);
+}
+.header p{
+  font-size:13px;
+  color:var(--text-dim);
+  margin-top:4px;
+}
+
+/* ── Destination info ── */
+.dest-info{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:14px 16px;
+  margin-bottom:16px;
+}
+.dest-info .label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1.5px;
+  color:var(--text-dim);
+  margin-bottom:2px;
+}
+.dest-info .value{
+  font-size:18px;
+  font-weight:700;
+  color:var(--accent);
+}
+.dest-info .sub{
+  font-size:12px;
+  color:var(--text-dim);
+  margin-top:2px;
+  font-family:monospace;
+}
+
+/* ── GPS bar ── */
+.gps-bar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  margin-bottom:16px;
+  font-size:13px;
+}
+.gps-indicator{
+  width:8px;height:8px;
+  border-radius:50%;
+  flex-shrink:0;
+}
+.gps-indicator.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.gps-indicator.wait{background:#f39c12;animation:pulse 1.2s infinite}
+.gps-indicator.err{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.gps-label{flex:1;color:var(--text-dim)}
+#server-status{font-size:12px;color:var(--text-dim);text-align:right;margin-bottom:12px}
+#server-status.ok{color:var(--green)}
+#server-status.fail{color:var(--red)}
+
+/* ── Buttons ── */
+button{
+  display:block;
+  width:100%;
+  padding:14px 20px;
+  font-size:17px;
+  font-weight:600;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  transition:background .15s,opacity .15s;
+  font-family:inherit;
+  color:#fff;
+}
+button:active{opacity:.85}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+
+.btn-secondary{
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  color:var(--text);
+  margin-bottom:8px;
+}
+.btn-secondary:hover:not(:disabled){background:#2a2a2a}
+
+.btn-primary{
+  background:var(--accent-dim);
+  color:#fff;
+  margin-bottom:8px;
+}
+.btn-primary:hover:not(:disabled){background:var(--accent)}
+
+.btn-danger{
+  background:#c0392b;
+  margin-bottom:8px;
+}
+.btn-danger:hover{background:var(--red)}
+
+.btn-row{display:flex;gap:8px;margin-bottom:8px}
+.btn-row button{flex:1;margin-bottom:0}
+
+/* ── Output boxes ── */
+.output{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px 14px;
+  font-size:15px;
+  color:var(--text-dim);
+  min-height:20px;
+  margin-bottom:16px;
+  word-wrap:break-word;
+}
+.output:empty::before{
+  content:'—';
+  color:#444;
+}
+.output.error{border-color:var(--red);color:var(--red)}
+
+/* ── Section labels ── */
+.section-label{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:1.5px;
+  color:var(--text-dim);
+  margin-bottom:8px;
+  padding-left:2px;
+}
+
+/* ── Toggle switch ── */
+.toggle-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px;
+  margin-bottom:8px;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.toggle-row:hover{background:var(--surface-2)}
+.toggle-label{font-size:16px;font-weight:600}
+.toggle-sub{font-size:12px;color:var(--text-dim);margin-top:2px}
+
+.toggle-track{
+  position:relative;
+  width:56px;height:30px;
+  background:#333;
+  border-radius:15px;
+  transition:background .25s;
+  flex-shrink:0;
+}
+.toggle-track::after{
+  content:'';
+  position:absolute;
+  top:3px;left:3px;
+  width:24px;height:24px;
+  background:#888;
+  border-radius:50%;
+  transition:transform .25s,background .25s;
+}
+.toggle-row.active .toggle-track{background:var(--accent-dim)}
+.toggle-row.active .toggle-track::after{
+  transform:translateX(26px);
+  background:var(--accent);
+}
+
+/* ── Nav panel ── */
+.nav-panel{
+  display:none;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  overflow:hidden;
+  margin-bottom:16px;
+}
+.nav-panel.visible{display:block}
+
+.nav-summary{
+  padding:12px 16px;
+  font-size:14px;
+  color:var(--text-dim);
+  border-bottom:1px solid var(--border);
+  line-height:1.6;
+}
+.nav-current{
+  padding:16px;
+  font-size:18px;
+  font-weight:600;
+  color:var(--text);
+  border-bottom:1px solid var(--border);
+  min-height:70px;
+  line-height:1.5;
+}
+.nav-controls{
+  display:flex;
+  border-bottom:1px solid var(--border);
+}
+.nav-btn{
+  flex:1;
+  padding:14px 8px;
+  font-size:15px;
+  font-weight:600;
+  background:transparent;
+  color:var(--text-dim);
+  border:none;
+  border-right:1px solid var(--border);
+  cursor:pointer;
+  transition:background .12s,color .12s;
+  font-family:inherit;
+  width:auto;
+  margin:0;
+  border-radius:0;
+}
+.nav-btn:last-child{border-right:none}
+.nav-btn:hover{background:var(--surface-2);color:var(--text)}
+.nav-btn:active{background:#2a2a2a}
+
+.step-list{
+  max-height:35vh;
+  overflow-y:auto;
+  padding:8px;
+}
+.step-item{
+  padding:10px 12px;
+  margin:4px 0;
+  border-radius:6px;
+  background:var(--bg);
+  border-left:3px solid transparent;
+  font-size:14px;
+  cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+.step-item:hover{background:var(--surface-2)}
+.step-item.active{
+  border-left-color:var(--accent);
+  background:var(--surface-2);
+}
+.step-item .snum{
+  font-weight:700;
+  color:var(--accent);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.step-item .sinstr{margin-top:2px}
+.step-item .smeta{
+  font-size:12px;
+  color:var(--text-dim);
+  margin-top:4px;
+}
+
+/* ── Debug / Map ── */
+.debug-section{
+  border-top:1px solid var(--border);
+  margin-top:16px;
+  padding-top:16px;
+}
+.debug-toggle{
+  font-size:13px;
+  color:var(--text-dim);
+  background:none;
+  border:1px dashed var(--border);
+  padding:8px;
+  cursor:pointer;
+  margin-bottom:8px;
+  font-family:inherit;
+}
+.debug-toggle:hover{color:var(--text);border-color:var(--text-dim)}
+#map-wrap{display:none;margin-top:8px}
+#map{
+  height:250px;
+  border-radius:8px;
+  border:1px solid var(--border);
+}
+.map-hint{
+  font-size:12px;
+  color:var(--text-dim);
+  text-align:center;
+  margin-top:6px;
+}
+
+/* ── Error log ── */
+#error-log{
+  display:none;
+  background:#1a0000;
+  border:1px solid #400;
+  border-radius:8px;
+  padding:12px;
+  margin-bottom:16px;
+  font-size:13px;
+  font-family:monospace;
+  color:var(--red);
+  max-height:150px;
+  overflow-y:auto;
+  word-break:break-all;
+}
+
+/* ── Keyboard hints ── */
+.kb-hints{
+  text-align:center;
+  font-size:11px;
+  color:#555;
+  padding:8px 0;
+  letter-spacing:.3px;
+}
+kbd{
+  display:inline-block;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:1px 5px;
+  font-size:10px;
+  font-family:monospace;
+  color:var(--text-dim);
+}
+
+/* ── Leaflet overrides ── */
+.leaflet-control-zoom a{
+  background:var(--surface)!important;
+  color:var(--text)!important;
+  border-color:var(--border)!important;
+}
+.leaflet-control-attribution{
+  font-size:9px!important;
+  background:rgba(0,0,0,.8)!important;
+  color:#555!important;
+}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>BLINDNAV</h1>
+    <p>Walking navigation assistant</p>
+  </div>
+
+  <!-- Server health -->
+  <div id="server-status">Checking server connection...</div>
+
+  <!-- Destination -->
+  <div class="dest-info">
+    <div class="label">Fixed Destination</div>
+    <div class="value">Painavu</div>
+    <div class="sub">9.8453 N, 76.9730 E &middot; Idukki, Kerala &middot; 685603</div>
+  </div>
+
+  <!-- GPS -->
+  <div class="gps-bar">
+    <div class="gps-indicator wait" id="gps-dot"></div>
+    <div class="gps-label" id="gps-text">Acquiring GPS signal</div>
+  </div>
+
+  <!-- Error log -->
+  <div id="error-log"></div>
+
+  <!-- Where Am I -->
+  <div class="section-label">Current Location</div>
+  <button class="btn-secondary" id="btn-locate" onclick="whereAmI()">
+    Where Am I?
+  </button>
+  <div class="output" id="loc-output"></div>
+
+  <!-- Navigation toggle -->
+  <div class="section-label">Navigation</div>
+  <div class="toggle-row" id="nav-toggle" onclick="handleToggle()" role="switch"
+       aria-checked="false" aria-label="Start navigation to Painavu" tabindex="0">
+    <div>
+      <div class="toggle-label">Navigate to Painavu</div>
+      <div class="toggle-sub" id="toggle-status">Tap to start</div>
+    </div>
+    <div class="toggle-track"></div>
+  </div>
+
+  <!-- Nav panel -->
+  <div class="nav-panel" id="nav-panel">
+    <div class="nav-summary" id="nav-summary"></div>
+    <div class="nav-current" id="nav-current" aria-live="assertive"></div>
+    <div class="nav-controls">
+      <button class="nav-btn" onclick="prevStep()">Previous</button>
+      <button class="nav-btn" onclick="repeatStep()">Repeat</button>
+      <button class="nav-btn" onclick="nextStep()">Next</button>
+    </div>
+    <div class="step-list" id="step-list"></div>
+  </div>
+
+  <!-- Debug section -->
+  <div class="debug-section">
+    <button class="debug-toggle" onclick="toggleMap()">Toggle test map</button>
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div class="map-hint">Click on the map to simulate your GPS position</div>
+    </div>
+  </div>
+
+  <!-- Keyboard hints -->
+  <div class="kb-hints">
+    <kbd>W</kbd> Location &nbsp;
+    <kbd>&#8594;</kbd> Next &nbsp;
+    <kbd>&#8592;</kbd> Prev &nbsp;
+    <kbd>R</kbd> Repeat &nbsp;
+    <kbd>Space</kbd> Toggle &nbsp;
+    <kbd>Esc</kbd> Stop
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+
+const DEST = {lat:9.8453, lng:76.9730};
+
+let curLat = null, curLng = null;
+let navData = [], curStep = -1, navigating = false;
+let watchId = null;
+let map, curMarker, destMarker, routeLine, mapReady = false;
+
+const synth = window.speechSynthesis;
+
+// ── Logging ──────────────────────────────────────
+function logError(msg) {
+  console.error(msg);
+  const el = document.getElementById("error-log");
+  el.style.display = "block";
+  const ts = new Date().toLocaleTimeString();
+  el.textContent = `[${ts}] ${msg}\n` + el.textContent;
+}
+
+function clearError() {
+  document.getElementById("error-log").style.display = "none";
+  document.getElementById("error-log").textContent = "";
+}
+
+// ── Health check ─────────────────────────────────
+async function checkHealth() {
+  const el = document.getElementById("server-status");
+  try {
+    const r = await fetch("/api/health");
+    const d = await r.json();
+    if (d.ok) {
+      el.textContent = "Server connected. External APIs reachable.";
+      el.className = "ok";
+    } else {
+      el.textContent = "Server running but API issues: " + (d.errors||[]).join("; ");
+      el.className = "fail";
+      logError("Health check failed: " + JSON.stringify(d.errors));
+    }
+  } catch(e) {
+    el.textContent = "Cannot reach server at /api/health — is Flask running?";
+    el.className = "fail";
+    logError("Health check fetch failed: " + e.message);
+  }
+}
+
+// ── Speech ───────────────────────────────────────
+function speak(text, interrupt) {
+  if (interrupt === undefined) interrupt = true;
+  if (!synth) return;
+  if (interrupt) synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.92;
+  u.pitch = 1.0;
+  u.volume = 1;
+  const voices = synth.getVoices();
+  const v = voices.find(function(v){return /en/i.test(v.lang)});
+  if (v) u.voice = v;
+  synth.speak(u);
+}
+if (synth) speechSynthesis.onvoiceschanged = function(){synth.getVoices()};
+
+// ── GPS ──────────────────────────────────────────
+function startGPS() {
+  if (!navigator.geolocation) {
+    setGPS("GPS not available in this browser", "err");
+    return;
+  }
+  watchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      curLat = pos.coords.latitude;
+      curLng = pos.coords.longitude;
+      setGPS(curLat.toFixed(5) + ", " + curLng.toFixed(5), "ok");
+      updateMapPos();
+      if (navigating) checkProximity();
+    },
+    function(err) {
+      setGPS("GPS unavailable (code " + err.code + ") — use test map below", "err");
+    },
+    {enableHighAccuracy:true, maximumAge:3000, timeout:15000}
+  );
+}
+
+function setGPS(msg, type) {
+  document.getElementById("gps-dot").className = "gps-indicator " + type;
+  document.getElementById("gps-text").textContent = msg;
+}
+
+// ── API fetch wrapper ────────────────────────────
+async function apiPost(url, body) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    throw new Error("HTTP " + r.status + " from " + url);
+  }
+  return r.json();
+}
+
+// ── Where Am I ───────────────────────────────────
+async function whereAmI() {
+  if (curLat === null) {
+    speak("GPS position not available. Please wait or set a position on the test map.");
+    return;
+  }
+  var out = document.getElementById("loc-output");
+  out.textContent = "Locating...";
+  out.className = "output";
+  clearError();
+  speak("Locating you.");
+
+  try {
+    var d = await apiPost("/api/locate", {lat:curLat, lng:curLng});
+    if (d.success) {
+      var distKm = (d.dist_to_painavu / 1000).toFixed(1);
+      out.textContent = d.spoken + " — " + distKm + " km from Painavu";
+      speak("You are near " + d.spoken + ". Approximately " + distKm + " kilometres from Painavu.");
+    } else {
+      out.textContent = "Error: " + d.error;
+      out.className = "output error";
+      speak("Location error: " + d.error);
+      logError("Locate API error: " + d.error);
+    }
+  } catch(e) {
+    out.textContent = "Failed: " + e.message;
+    out.className = "output error";
+    speak("Failed to get location. " + e.message);
+    logError("Locate fetch error: " + e.message);
+  }
+}
+
+// ── Toggle navigation ────────────────────────────
+function handleToggle() {
+  var row = document.getElementById("nav-toggle");
+  var isActive = row.classList.contains("active");
+  if (isActive) {
+    stopNav();
+  } else {
+    startNav();
+  }
+}
+
+async function startNav() {
+  if (curLat === null) {
+    speak("Cannot navigate. GPS position not available. Set a position on the test map first.");
+    return;
+  }
+
+  var row = document.getElementById("nav-toggle");
+  var status = document.getElementById("toggle-status");
+  var panel = document.getElementById("nav-panel");
+
+  row.classList.add("active");
+  row.setAttribute("aria-checked", "true");
+  status.textContent = "Calculating route...";
+  clearError();
+  speak("Calculating walking route to Painavu.");
+
+  try {
+    var d = await apiPost("/api/navigate", {lat:curLat, lng:curLng});
+
+    if (!d.success) {
+      speak("Route failed. " + (d.error || ""));
+      logError("Navigate API error: " + d.error);
+      row.classList.remove("active");
+      row.setAttribute("aria-checked", "false");
+      status.textContent = "Route failed: " + d.error;
+      return;
+    }
+
+    navData = d.nav_steps;
+    document.getElementById("nav-summary").textContent = d.summary;
+
+    if (mapReady && d.geometry) {
+      if (routeLine) map.removeLayer(routeLine);
+      var coords = d.geometry.coordinates.map(function(c){return [c[1],c[0]]});
+      routeLine = L.polyline(coords, {color:"#e0a800",weight:4,opacity:0.8}).addTo(map);
+      map.fitBounds(routeLine.getBounds(), {padding:[30,30]});
+    }
+
+    buildStepList();
+    curStep = 0;
+    navigating = true;
+    status.textContent = "Active — " + navData.length + " steps";
+    panel.classList.add("visible");
+    showStep();
+
+    speak(d.summary);
+    var delay = Math.min(d.summary.length * 55, 12000);
+    setTimeout(function(){
+      if (navigating && curStep === 0) {
+        speak("Step 1. " + navData[0].instruction, false);
+      }
+    }, delay);
+
+  } catch(e) {
+    speak("Failed to get route. " + e.message);
+    logError("Navigate fetch error: " + e.message);
+    row.classList.remove("active");
+    row.setAttribute("aria-checked", "false");
+    status.textContent = "Error: " + e.message;
+  }
+}
+
+function stopNav() {
+  navigating = false;
+  curStep = -1;
+  navData = [];
+  var row = document.getElementById("nav-toggle");
+  row.classList.remove("active");
+  row.setAttribute("aria-checked", "false");
+  document.getElementById("toggle-status").textContent = "Tap to start";
+  document.getElementById("nav-panel").classList.remove("visible");
+  if (synth) synth.cancel();
+  speak("Navigation stopped.");
+}
+
+// ── Step list ────────────────────────────────────
+function buildStepList() {
+  var box = document.getElementById("step-list");
+  box.innerHTML = "";
+  navData.forEach(function(s, i) {
+    var div = document.createElement("div");
+    div.className = "step-item";
+    div.id = "si-" + i;
+    div.innerHTML =
+      '<div class="snum">Step ' + s.n + '</div>' +
+      '<div class="sinstr">' + s.instruction + '</div>' +
+      '<div class="smeta">' + s.meters + 'm — approximately ' + s.steps + ' steps</div>';
+    div.onclick = function(){goToStep(i)};
+    box.appendChild(div);
+  });
+}
+
+function showStep() {
+  if (curStep < 0 || curStep >= navData.length) return;
+  var s = navData[curStep];
+  document.getElementById("nav-current").textContent =
+    "Step " + s.n + " of " + navData.length + ": " + s.instruction;
+  var items = document.querySelectorAll(".step-item");
+  for (var i = 0; i < items.length; i++) {
+    items[i].classList.toggle("active", i === curStep);
+  }
+  var el = document.getElementById("si-" + curStep);
+  if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+function nextStep() {
+  if (!navigating) return;
+  if (curStep < navData.length - 1) {
+    curStep++;
+    showStep();
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+  } else {
+    speak("That was the last step. You should be at Painavu.");
+  }
+}
+
+function prevStep() {
+  if (!navigating) return;
+  if (curStep > 0) {
+    curStep--;
+    showStep();
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+  } else {
+    speak("This is the first step.");
+  }
+}
+
+function repeatStep() {
+  if (!navigating || curStep < 0) return;
+  speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+}
+
+function goToStep(i) {
+  if (!navigating) return;
+  curStep = i;
+  showStep();
+  speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+}
+
+// ── Auto-advance ─────────────────────────────────
+function checkProximity() {
+  if (!navigating || curStep < 0 || curStep >= navData.length - 1) return;
+  var next = navData[curStep + 1];
+  if (!next.loc || next.loc.length < 2) return;
+  var d = haversine(curLat, curLng, next.loc[1], next.loc[0]);
+  if (d < 15) {
+    curStep++;
+    showStep();
+    speak("Step " + navData[curStep].n + ". " + navData[curStep].instruction);
+  }
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  var R = 6371000, toR = Math.PI / 180;
+  var dLat = (lat2-lat1)*toR, dLon = (lon2-lon1)*toR;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+          Math.cos(lat1*toR)*Math.cos(lat2*toR)*
+          Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── Map ──────────────────────────────────────────
+function toggleMap() {
+  var w = document.getElementById("map-wrap");
+  if (w.style.display === "block") {
+    w.style.display = "none";
+    return;
+  }
+  w.style.display = "block";
+  if (!mapReady) initMap();
+  else map.invalidateSize();
+}
+
+function initMap() {
+  var startLat = curLat || 9.9;
+  var startLng = curLng || 76.95;
+  map = L.map("map").setView([startLat, startLng], curLat ? 13 : 10);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution:"OSM/CARTO", maxZoom:19
+  }).addTo(map);
+
+  destMarker = L.marker([DEST.lat, DEST.lng]).addTo(map)
+    .bindTooltip("Painavu", {permanent:true, direction:"top"});
+
+  map.on("click", function(e) {
+    curLat = e.latlng.lat;
+    curLng = e.latlng.lng;
+    setGPS("Simulated: " + curLat.toFixed(5) + ", " + curLng.toFixed(5), "ok");
+    updateMapPos();
+    if (navigating) checkProximity();
+  });
+
+  mapReady = true;
+  updateMapPos();
+}
+
+function updateMapPos() {
+  if (!mapReady || curLat === null) return;
+  if (curMarker) {
+    curMarker.setLatLng([curLat, curLng]);
+  } else {
+    curMarker = L.circleMarker([curLat, curLng], {
+      radius:8, color:"#e0a800", fillColor:"#e0a800",
+      fillOpacity:0.9, weight:2
+    }).addTo(map).bindTooltip("You", {direction:"bottom"});
+  }
+}
+
+// ── Keyboard ─────────────────────────────────────
+document.addEventListener("keydown", function(e) {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  switch(e.key) {
+    case "ArrowRight": nextStep(); e.preventDefault(); break;
+    case "ArrowLeft": prevStep(); e.preventDefault(); break;
+    case "r": case "R": repeatStep(); e.preventDefault(); break;
+    case "w": case "W": whereAmI(); e.preventDefault(); break;
+    case " ": handleToggle(); e.preventDefault(); break;
+    case "Escape": if(navigating) stopNav(); break;
+  }
+});
+
+// Enter on toggle
+document.getElementById("nav-toggle").addEventListener("keydown", function(e) {
+  if (e.key === "Enter" || e.key === " ") {
+    handleToggle();
+    e.preventDefault();
+  }
+});
+
+// ── Shake to repeat ──────────────────────────────
+if (window.DeviceMotionEvent) {
+  var lastShake = 0;
+  window.addEventListener("devicemotion", function(e) {
+    var a = e.accelerationIncludingGravity;
+    if (!a) return;
+    if (Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z) > 45) {
+      var now = Date.now();
+      if (now - lastShake > 2500) { lastShake = now; repeatStep(); }
+    }
+  });
+}
+
+// ── Init ─────────────────────────────────────────
+window.addEventListener("load", function() {
+  checkHealth();
+  startGPS();
+  setTimeout(function(){
+    speak("Welcome to BlindNav. Your destination is Painavu, Idukki District, Kerala. " +
+          "Press Where Am I to hear your location. Toggle the switch to start navigation.");
+  }, 800);
+});
+</script>
+</body>
+</html>
