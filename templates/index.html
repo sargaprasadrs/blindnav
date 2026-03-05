@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="Accessible walking navigation app for blind and visually impaired users">
+<meta name="theme-color" content="#e0a800">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BlindNav">
+<link rel="manifest" href="/static/manifest.json">
 <title>BlindNav — Painavu</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
@@ -416,9 +422,14 @@ kbd{
 
   <!-- Where Am I -->
   <div class="section-label">Current Location</div>
-  <button class="btn-secondary" id="btn-locate" onclick="whereAmI()">
-    Where Am I?
-  </button>
+  <div class="btn-row">
+    <button class="btn-secondary" id="btn-locate" onclick="whereAmI()">
+      Where Am I?
+    </button>
+    <button class="btn-secondary" onclick="testGPS()" style="font-size:14px;">
+      🔧 Test GPS
+    </button>
+  </div>
   <div class="output" id="loc-output"></div>
 
   <!-- Navigation toggle -->
@@ -491,23 +502,10 @@ let liveNavigation = {
   trackingInterval: null,
   stepUpdateInterval: null,
   stepLength: 0.65, // meters per step
-  alertDistances: [100, 50, 30, 20, 10, 5, 3] // distances for turn alerts
-};
-
-const synth = window.speechSynthesis;
-
-// ── Logging ──────────────────────────────────────
-function logError(msg) {
-  console.error(msg);
-  const el = document.getElementById("error-log");
-  el.style.display = "block";
-  const ts = new Date().toLocaleTimeString();
-  el.textContent = `[${ts}] ${msg}\n` + el.textContent;
-}
-
-function clearError() {
-  document.getElementById("error-log").style.display = "none";
-  document.getElementById("error-log").textContent = "";
+  alertDistances: [100, 50, 30, 20, 10, 5, 3], // distances for turn alerts
+  wakeLock: null,
+  minMovement: 2, // Minimum meters moved to register as movement
+  maxAccuracy: 100 // Accept GPS readings up to 100m accuracy
 }
 
 // ── Health check ─────────────────────────────────
@@ -548,41 +546,228 @@ function speak(text, interrupt) {
 if (synth) speechSynthesis.onvoiceschanged = function(){synth.getVoices()};
 
 // ── GPS ──────────────────────────────────────────
+let gpsRetryCount = 0;
+const MAX_GPS_RETRIES = 5;
+let gpsInitialized = false;
+
 function startGPS() {
   if (!navigator.geolocation) {
-    setGPS("GPS not available in this browser", "err");
+    setGPS("GPS not supported on this device", "err");
+    speak("GPS not supported on this device. Please use a device with location services.");
     return;
   }
+  
+  if (gpsInitialized) return;
+  gpsInitialized = true;
+  
+  console.log("Starting GPS with immediate tracking...");
+  setGPS("Starting location services...", "wait");
+  
+  // Start tracking immediately - mobile browsers handle permissions automatically
+  startGPSTracking();
+}
+
+function startGPSTracking() {
+  if (watchId) {
+    navigator.geolocation.clearWatch(watchId);
+  }
+  
+  setGPS("Acquiring GPS signal...", "wait");
+  
+  // Aggressive GPS settings for mobile - prioritize getting ANY location first
+  const gpsOptions = {
+    enableHighAccuracy: true,
+    maximumAge: 500,        // Very fresh positions
+    timeout: 5000           // Quick timeout to avoid hanging
+  };
+  
+  console.log("Starting GPS watch with options:", gpsOptions);
+  
   watchId = navigator.geolocation.watchPosition(
     function(pos) {
+      gpsRetryCount = 0; // Reset retry count on success
       var newLat = pos.coords.latitude;
       var newLng = pos.coords.longitude;
+      var accuracy = pos.coords.accuracy || 999;
+      var speed = pos.coords.speed;
+      var heading = pos.coords.heading;
       
-      // Update position
-      if (curLat !== null && curLng !== null && liveNavigation.active) {
-        updateLiveNavigation(newLat, newLng);
-      }
+      console.log(`📍 GPS SUCCESS: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}, accuracy: ${accuracy}m, speed: ${speed}`);
       
+      // Accept ANY GPS reading - don't be picky about accuracy
       curLat = newLat;
       curLng = newLng;
-      setGPS(curLat.toFixed(5) + ", " + curLng.toFixed(5), "ok");
+      
+      // Update live navigation if active
+      if (liveNavigation.active && liveNavigation.lastPosition) {
+        updateLiveNavigation(newLat, newLng);
+      } else if (!liveNavigation.lastPosition) {
+        liveNavigation.lastPosition = {lat: newLat, lng: newLng};
+      }
+      
+      // Show GPS status with quality indicator
+      let qualityText = "📍";
+      if (accuracy <= 5) qualityText = "🎯";        // Excellent
+      else if (accuracy <= 15) qualityText = "🟢";   // Good
+      else if (accuracy <= 30) qualityText = "🟡";   // Fair
+      else qualityText = "🔴";                       // Poor but usable
+      
+      const accuracyText = ` (±${Math.round(accuracy)}m)`;
+      setGPS(qualityText + " " + curLat.toFixed(5) + ", " + curLng.toFixed(5) + accuracyText, "ok");
       updateMapPos();
+      
+      // Only warn about VERY poor accuracy
+      if (liveNavigation.active && accuracy > 50) {
+        if (Date.now() - liveNavigation.lastAnnouncement > 20000) {
+          speak("GPS accuracy is very low. Move to open area for better signal.");
+          liveNavigation.lastAnnouncement = Date.now();
+        }
+      }
       
       if (navigating && !liveNavigation.active) checkProximity();
     },
     function(err) {
-      setGPS("GPS unavailable (code " + err.code + ") — use test map below", "err");
-      if (liveNavigation.active) {
-        speak("GPS signal lost. Please ensure location services are enabled.");
-      }
+      console.error("❌ GPS ERROR:", err);
+      handleGPSError(err, false);
     },
-    {enableHighAccuracy:true, maximumAge:2000, timeout:10000}
+    gpsOptions
   );
+  
+  // Also try to get immediate position
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      console.log("📍 Got immediate position:", pos.coords.latitude, pos.coords.longitude);
+    },
+    function(err) {
+      console.log("⚠️ Immediate position failed:", err.message);
+    },
+    {enableHighAccuracy: false, timeout: 3000, maximumAge: 10000}
+  );
+}
+
+function handleGPSError(err, isInitialRequest) {
+  console.error("❌ GPS Error code", err.code, ":", err.message);
+  gpsRetryCount++;
+  
+  let errorMessage = "GPS error";
+  let spokenMessage = "GPS error";
+  let shouldRetry = true;
+  
+  switch(err.code) {
+    case 1: // PERMISSION_DENIED
+      errorMessage = "📍❌ Location access denied - tap to allow in browser";
+      spokenMessage = "Location access is required for navigation. Please allow location access when your browser asks, then refresh the page.";
+      shouldRetry = false;
+      break;
+    case 2: // POSITION_UNAVAILABLE  
+      errorMessage = "📍⚠️ GPS signal unavailable - retrying...";
+      spokenMessage = "GPS signal unavailable. Trying again...";
+      break;
+    case 3: // TIMEOUT
+      errorMessage = "📍⏱️ GPS timeout - retrying with fallback...";
+      spokenMessage = "GPS taking too long. Retrying...";
+      break;
+    default:
+      errorMessage = `📍❓ GPS error ${err.code} - retrying...`;
+      spokenMessage = "GPS error. Retrying...";
+  }
+  
+  setGPS(errorMessage, "err");
+  
+  // Always speak GPS errors for blind users
+  if (gpsRetryCount <= 2) {
+    speak(spokenMessage);
+  }
+  
+  // Vibrate to alert user
+  if (navigator.vibrate) {
+    navigator.vibrate([200, 100, 200]);
+  }
+  
+  // Aggressive retry strategy
+  if (shouldRetry && gpsRetryCount < MAX_GPS_RETRIES) {
+    const retryDelay = Math.min(2000 * gpsRetryCount, 10000); // Escalating delay
+    console.log(`🔄 Retrying GPS in ${retryDelay}ms (attempt ${gpsRetryCount}/${MAX_GPS_RETRIES})`);
+    
+    setTimeout(() => {
+      console.log("🔄 Retry attempt", gpsRetryCount);
+      startGPSTracking();
+    }, retryDelay);
+  } else if (gpsRetryCount >= MAX_GPS_RETRIES) {
+    setGPS("📍💀 GPS failed after multiple attempts - use test map", "err");
+    speak("GPS has failed multiple times. You can test the app using the test map at the bottom of the page.");
+  }
 }
 
 function setGPS(msg, type) {
   document.getElementById("gps-dot").className = "gps-indicator " + type;
   document.getElementById("gps-text").textContent = msg;
+}
+
+// ── GPS Test Function ──────────────────────────────
+function testGPS() {
+  console.log("🧪 GPS Test Started");
+  speak("Testing GPS. Please wait.");
+  
+  const output = document.getElementById("loc-output");
+  output.textContent = "🧪 Testing GPS capabilities...";
+  output.className = "output";
+  
+  if (!navigator.geolocation) {
+    output.textContent = "❌ Geolocation not supported";
+    speak("GPS not supported on this device");
+    return;
+  }
+  
+  // Test 1: Check if geolocation object exists
+  console.log("✅ Geolocation API available");
+  
+  // Test 2: Try getCurrentPosition with different settings
+  const tests = [
+    {name: "High accuracy", options: {enableHighAccuracy: true, timeout: 10000, maximumAge: 0}},
+    {name: "Low accuracy", options: {enableHighAccuracy: false, timeout: 5000, maximumAge: 60000}},
+    {name: "Fast response", options: {enableHighAccuracy: true, timeout: 3000, maximumAge: 10000}}
+  ];
+  
+  let testIndex = 0;
+  
+  function runNextTest() {
+    if (testIndex >= tests.length) {
+      output.textContent = "❌ All GPS tests failed. Check device settings.";
+      speak("GPS tests failed. Please check your device location settings.");
+      return;
+    }
+    
+    const test = tests[testIndex];
+    output.textContent = `🧪 Testing: ${test.name}...`;
+    console.log(`🧪 Test ${testIndex + 1}: ${test.name}`, test.options);
+    
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const acc = position.coords.accuracy;
+        
+        console.log(`✅ GPS Test SUCCESS: ${lat}, ${lng}, accuracy: ${acc}m`);
+        output.textContent = `✅ GPS Works! Location: ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${Math.round(acc)}m)`;
+        
+        // Update main GPS variables
+        curLat = lat;
+        curLng = lng;
+        setGPS(`🎯 ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${Math.round(acc)}m)`, "ok");
+        
+        speak(`GPS test successful. Location acquired with ${Math.round(acc)} meter accuracy.`);
+      },
+      function(error) {
+        console.log(`❌ Test ${testIndex + 1} failed:`, error.message);
+        testIndex++;
+        setTimeout(runNextTest, 1000);
+      },
+      test.options
+    );
+  }
+  
+  runNextTest();
 }
 
 // ── API fetch wrapper ────────────────────────────
@@ -600,32 +785,55 @@ async function apiPost(url, body) {
 
 // ── Where Am I ───────────────────────────────────
 async function whereAmI() {
-  if (curLat === null) {
-    speak("GPS position not available. Please wait or set a position on the test map.");
+  if (curLat === null || curLng === null) {
+    speak("GPS position not available. Please ensure location services are enabled and try again.");
+    
+    // Try to force GPS update
+    console.log("🔄 Forcing GPS update for location request...");
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          console.log("✅ Got forced GPS position:", pos.coords.latitude, pos.coords.longitude);
+          curLat = pos.coords.latitude;
+          curLng = pos.coords.longitude;
+          setGPS(`📍 ${curLat.toFixed(5)}, ${curLng.toFixed(5)}`, "ok");
+          whereAmI(); // Retry location lookup
+        },
+        function(error) {
+          console.log("❌ Forced GPS failed:", error.message);
+          speak("Unable to get GPS location. Please check your device settings.");
+        },
+        {enableHighAccuracy: true, timeout: 5000, maximumAge: 0}
+      );
+    }
     return;
   }
+  
+  console.log(`🏠 Getting location for: ${curLat}, ${curLng}`);
+  
   var out = document.getElementById("loc-output");
-  out.textContent = "Locating...";
+  out.textContent = "Getting your location...";
   out.className = "output";
   clearError();
-  speak("Locating you.");
+  speak("Getting your location.");
 
   try {
     var d = await apiPost("/api/locate", {lat:curLat, lng:curLng});
     if (d.success) {
       var distKm = (d.dist_to_painavu / 1000).toFixed(1);
       out.textContent = d.spoken + " — " + distKm + " km from Painavu";
-      speak("You are near " + d.spoken + ". Approximately " + distKm + " kilometres from Painavu.");
+      speak("You are at " + d.spoken + ". Distance to Painavu: " + distKm + " kilometres.");
+      console.log("✅ Location found:", d.spoken);
     } else {
       out.textContent = "Error: " + d.error;
       out.className = "output error";
-      speak("Location error: " + d.error);
+      speak("Location lookup failed: " + d.error);
       logError("Locate API error: " + d.error);
     }
   } catch(e) {
     out.textContent = "Failed: " + e.message;
     out.className = "output error";
-    speak("Failed to get location. " + e.message);
+    speak("Failed to get location information. " + e.message);
     logError("Locate fetch error: " + e.message);
   }
 }
@@ -804,9 +1012,28 @@ function initLiveNavigation(routeData) {
   liveNavigation.lastAnnouncement = Date.now();
   liveNavigation.courseDeviation = 0;
   
+  // Restart GPS with live navigation settings for better accuracy
+  startGPSTracking();
+  
+  // Keep screen awake during navigation if possible
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then(wakeLock => {
+      console.log('Screen wake lock activated');
+      // Store wake lock to release later
+      liveNavigation.wakeLock = wakeLock;
+    }).catch(err => {
+      console.log('Wake lock failed:', err);
+    });
+  }
+  
   calculateNextTurn();
   startLiveTracking();
   updateLiveStatus();
+  
+  // Initial vibration to indicate navigation start
+  if (navigator.vibrate) {
+    navigator.vibrate([100, 50, 100, 50, 200]);
+  }
 }
 
 function stopLiveNavigation() {
@@ -818,6 +1045,21 @@ function stopLiveNavigation() {
   if (liveNavigation.stepUpdateInterval) {
     clearInterval(liveNavigation.stepUpdateInterval);
     liveNavigation.stepUpdateInterval = null;
+  }
+  
+  // Release wake lock
+  if (liveNavigation.wakeLock) {
+    liveNavigation.wakeLock.release();
+    liveNavigation.wakeLock = null;
+    console.log('Screen wake lock released');
+  }
+  
+  // Restart GPS with normal settings
+  startGPSTracking();
+  
+  // Vibration to indicate navigation stopped
+  if (navigator.vibrate) {
+    navigator.vibrate([200, 100, 200]);
   }
 }
 
@@ -847,21 +1089,31 @@ function updateLiveNavigation(newLat, newLng) {
     newLat, newLng
   );
   
-  // Update step counters
-  liveNavigation.stepDistance += moved;
-  var newSteps = Math.floor(liveNavigation.stepDistance / liveNavigation.stepLength);
-  if (newSteps > liveNavigation.totalSteps) {
-    liveNavigation.totalSteps = newSteps;
+  // Only update if movement is significant (reduces GPS noise)
+  if (moved > 1) { // 1 meter minimum movement
+    // Update step counters
+    liveNavigation.stepDistance += moved;
+    var newSteps = Math.floor(liveNavigation.stepDistance / liveNavigation.stepLength);
+    if (newSteps > liveNavigation.totalSteps) {
+      liveNavigation.totalSteps = newSteps;
+      
+      // Provide step feedback every 10 steps
+      if (liveNavigation.totalSteps % 10 === 0 && navigator.vibrate) {
+        navigator.vibrate(50); // Subtle vibration every 10 steps
+      }
+    }
+    
+    // Check if reached current step destination
+    checkStepCompletion(newLat, newLng);
+    
+    // Check course deviation
+    checkCourseDeviation(newLat, newLng);
+    
+    // Update position
+    liveNavigation.lastPosition = {lat: newLat, lng: newLng};
+    
+    console.log(`Live nav update: moved ${moved.toFixed(1)}m, total steps: ${liveNavigation.totalSteps}`);
   }
-  
-  // Check if reached current step destination
-  checkStepCompletion(newLat, newLng);
-  
-  // Check course deviation
-  checkCourseDeviation(newLat, newLng);
-  
-  // Update position
-  liveNavigation.lastPosition = {lat: newLat, lng: newLng};
 }
 
 function checkStepCompletion(lat, lng) {
@@ -872,8 +1124,24 @@ function checkStepCompletion(lat, lng) {
   
   var distanceToStep = haversine(lat, lng, currentStep.lat, currentStep.lng);
   
-  // If within 15 meters of step point, advance
-  if (distanceToStep < 15) {
+  // Dynamic completion distance based on GPS accuracy
+  var completionDistance = 15; // Default 15 meters
+  if (liveNavigation.lastGoodPosition && liveNavigation.lastGoodPosition.accuracy) {
+    // Increase completion distance for poor GPS accuracy
+    completionDistance = Math.max(15, Math.min(30, liveNavigation.lastGoodPosition.accuracy * 1.5));
+  }
+  
+  console.log(`Distance to step ${curStep + 1}: ${distanceToStep.toFixed(1)}m (completion: ${completionDistance.toFixed(1)}m)`);
+  
+  // If within completion distance of step point, advance
+  if (distanceToStep < completionDistance) {
+    advanceToNextStep();
+  }
+  
+  // Alternative: check if we've walked far enough in the right direction
+  else if (liveNavigation.stepDistance >= (currentStep.distance * 0.8)) {
+    // If we've walked 80% of the expected distance, also advance
+    console.log(`Advancing step based on distance walked: ${liveNavigation.stepDistance.toFixed(1)}m of ${currentStep.distance.toFixed(1)}m`);
     advanceToNextStep();
   }
 }
@@ -1103,15 +1371,65 @@ if (window.DeviceMotionEvent) {
   });
 }
 
+// ── Device specific optimizations ────────────────
+function optimizeForMobile() {
+  // Prevent zoom on double tap (important for blind users)
+  document.addEventListener('touchstart', function(e) {
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  });
+  
+  // Prevent context menu on long press
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+  });
+  
+  // Add viewport meta for proper mobile rendering
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) {
+    viewport.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+  }
+}
+
+// ── Visibility change handling ───────────────────
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    console.log('App backgrounded');
+    // Keep GPS running but reduce update frequency
+  } else {
+    console.log('App foregrounded');
+    if (liveNavigation.active) {
+      // Restart GPS with full accuracy when app comes back
+      startGPSTracking();
+      speak("Navigation resumed");
+    }
+  }
+});
+
 // ── Init ─────────────────────────────────────────
 window.addEventListener("load", function() {
+  optimizeForMobile();
   checkHealth();
+  
+  // Start GPS immediately and aggressively
+  console.log("🚀 Initializing GPS...");
   startGPS();
+  
+  // Also try backup GPS method
+  setTimeout(() => {
+    if (!curLat || !curLng) {
+      console.log("🔄 GPS backup attempt...");
+      startGPS();
+    }
+  }, 2000);
+  
   setTimeout(function(){
     speak("Welcome to BlindNav. Your destination is Painavu, Idukki District, Kerala. " +
           "Press Where Am I to hear your location. Toggle the switch to start live navigation. " +
-          "During navigation, you will receive automatic step-by-step voice directions as you walk.");
-  }, 800);
+          "During navigation, you will receive automatic step-by-step voice directions as you walk. " +
+          "For best results, ensure location services are enabled and you have clear sky view.");
+  }, 1500);
 });
 </script>
 </body>

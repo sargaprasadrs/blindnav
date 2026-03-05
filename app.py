@@ -3,7 +3,7 @@ BlindNav - Walking navigation assistant for blind users.
 Fixed destination: Painavu, Idukki District, Kerala (9.8453, 76.9730)
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import requests
 import traceback
 import logging
@@ -109,6 +109,11 @@ def build_instruction(s):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    return send_from_directory("static", filename)
 
 
 @app.route("/api/health", methods=["GET"])

@@ -1,0 +1,25 @@
+{
+  "name": "BlindNav - Walking Navigation Assistant", 
+  "short_name": "BlindNav",
+  "description": "Accessible walking navigation app for blind and visually impaired users",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#111111",
+  "theme_color": "#e0a800",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23e0a800'/%3E%3Cpath d='M30 35h40v5H30zm0 15h40v5H30zm0 15h25v5H30z' fill='%23111'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23e0a800'/%3E%3Cpath d='M30 35h40v5H30zm0 15h40v5H30zm0 15h25v5H30z' fill='%23111'/%3E%3C/svg%3E",
+      "sizes": "512x512", 
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["navigation", "accessibility", "travel"],
+  "lang": "en-US",
+  "permissions": ["geolocation"]
+}
