@@ -4,13 +4,29 @@ Fixed destination: Painavu, Idukki District, Kerala (9.8453, 76.9730)
 """
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask_cors import CORS
 import requests
 import traceback
 import logging
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 logging.basicConfig(level=logging.DEBUG)
 log = app.logger
+
+# Add error handlers
+@app.errorhandler(404)
+def not_found(error):
+    if request.path.startswith('/api'):
+        return jsonify({"success": False, "error": "API endpoint not found"}), 404
+    return "Page not found", 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    log.error(f"Internal server error: {error}")
+    if request.path.startswith('/api'):
+        return jsonify({"success": False, "error": "Internal server error"}), 500
+    return "Internal server error", 500
 
 # ── FIXED DESTINATION ─────────────────────────────────────────────────
 PAINAVU_LAT  = 9.8453
@@ -108,12 +124,25 @@ def build_instruction(s):
 
 @app.route("/")
 def index():
+    log.info("Serving main page")
     return render_template("index.html")
 
 
 @app.route("/static/<path:filename>")
 def serve_static(filename):
     return send_from_directory("static", filename)
+
+
+@app.route("/api/ping", methods=["GET"])
+def ping():
+    """Simple connectivity test endpoint."""
+    return jsonify({"status": "ok", "message": "BlindNav server is running", "timestamp": __import__('time').time()})
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Handle favicon requests to prevent 404 errors."""
+    return send_from_directory("static", "manifest.json", mimetype='image/vnd.microsoft.icon')
 
 
 @app.route("/api/health", methods=["GET"])

@@ -511,19 +511,41 @@ let liveNavigation = {
 // ── Health check ─────────────────────────────────
 async function checkHealth() {
   const el = document.getElementById("server-status");
+  console.log("🔍 Checking server health...");
+  
+  // First try a simple ping
   try {
+    console.log("📡 Testing basic connectivity...");
+    const pingResponse = await fetch("/api/ping");
+    const pingData = await pingResponse.json();
+    console.log("✅ Basic connectivity OK:", pingData);
+  } catch(e) {
+    console.error("❌ Basic connectivity failed:", e);
+    el.textContent = "Cannot connect to server. Check if Flask is running on port 5000.";
+    el.className = "fail";
+    logError("Ping failed: " + e.message);
+    return;
+  }
+  
+  // Now try the full health check
+  try {
+    console.log("🏥 Running full health check...");
     const r = await fetch("/api/health");
     const d = await r.json();
+    console.log("📊 Health check result:", d);
+    
     if (d.ok) {
       el.textContent = "Server connected. External APIs reachable.";
       el.className = "ok";
+      console.log("✅ All systems operational");
     } else {
       el.textContent = "Server running but API issues: " + (d.errors||[]).join("; ");
       el.className = "fail";
       logError("Health check failed: " + JSON.stringify(d.errors));
     }
   } catch(e) {
-    el.textContent = "Cannot reach server at /api/health — is Flask running?";
+    console.error("❌ Health check failed:", e);
+    el.textContent = "Health check failed: " + e.message;
     el.className = "fail";
     logError("Health check fetch failed: " + e.message);
   }
@@ -771,16 +793,41 @@ function testGPS() {
 }
 
 // ── API fetch wrapper ────────────────────────────
-async function apiPost(url, body) {
-  const r = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) {
-    throw new Error("HTTP " + r.status + " from " + url);
+async function apiPost(url, body, retries = 2) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      console.log(`📡 API call attempt ${attempt + 1} to ${url}`);
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (!r.ok) {
+        throw new Error(`HTTP ${r.status} ${r.statusText} from ${url}`);
+      }
+      
+      const data = await r.json();
+      console.log(`✅ API call successful to ${url}`);
+      return data;
+      
+    } catch (e) {
+      console.error(`❌ API call attempt ${attempt + 1} failed:`, e);
+      lastError = e;
+      
+      if (attempt < retries - 1) {
+        console.log(`🔄 Retrying API call in 1 second...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
   }
-  return r.json();
+  
+  throw new Error(`API call failed after ${retries} attempts: ${lastError.message}`);
 }
 
 // ── Where Am I ───────────────────────────────────
