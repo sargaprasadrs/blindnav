@@ -643,7 +643,7 @@ function startGPSTracking() {
         if (Date.now() - liveNavigation.lastAnnouncement > 20000) {
           speak("GPS accuracy is very low. Move to open area for better signal.");
           liveNavigation.lastAnnouncement = Date.now();
-        }
+         }
       }
       
       if (navigating && !liveNavigation.active) checkProximity();
