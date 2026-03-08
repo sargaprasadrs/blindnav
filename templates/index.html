@@ -423,10 +423,13 @@ kbd{
   <!-- Where Am I -->
   <div class="section-label">Current Location</div>
   <div class="btn-row">
-    <button class="btn-secondary" id="btn-locate" onclick="whereAmI()">
+    <button class="btn-primary" id="btn-enable-gps" onclick="enableGPS()" style="display:block;">
+      📍 Enable GPS Location
+    </button>
+    <button class="btn-secondary" id="btn-locate" onclick="whereAmI()" style="display:none;">
       Where Am I?
     </button>
-    <button class="btn-secondary" onclick="testGPS()" style="font-size:14px;">
+    <button class="btn-secondary" onclick="testGPS()" style="font-size:14px; display:none;">
       🔧 Test GPS
     </button>
   </div>
@@ -481,6 +484,8 @@ kbd{
 <script>
 "use strict";
 
+const synth = window.speechSynthesis;
+
 const DEST = {lat:9.8453, lng:76.9730};
 
 let curLat = null, curLng = null;
@@ -504,8 +509,9 @@ let liveNavigation = {
   stepLength: 0.65, // meters per step
   alertDistances: [100, 50, 30, 20, 10, 5, 3], // distances for turn alerts
   wakeLock: null,
-  minMovement: 2, // Minimum meters moved to register as movement
-  maxAccuracy: 100 // Accept GPS readings up to 100m accuracy
+  minMovement: 3, // Minimum meters moved to register as movement (increased for GPS noise)
+  maxAccuracy: 100, // Accept GPS readings up to 100m accuracy
+  lastGoodPosition: null // Store last GPS position with accuracy
 }
 
 // ── Health check ─────────────────────────────────
@@ -552,40 +558,93 @@ async function checkHealth() {
 }
 
 // ── Speech ───────────────────────────────────────
-function speak(text, interrupt) {
-  if (interrupt === undefined) interrupt = true;
-  if (!synth) return;
-  if (interrupt) synth.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.92;
-  u.pitch = 1.0;
-  u.volume = 1;
-  const voices = synth.getVoices();
-  const v = voices.find(function(v){return /en/i.test(v.lang)});
-  if (v) u.voice = v;
-  synth.speak(u);
+function speak(text, interrupt = true) {
+  if (!('speechSynthesis' in window)) return;
+  
+  if (interrupt) speechSynthesis.cancel();
+  
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.92;
+  utter.pitch = 1;
+  utter.volume = 1;
+  
+  const voices = speechSynthesis.getVoices();
+  const voice = voices.find(v => v.lang.startsWith("en"));
+  if (voice) utter.voice = voice;
+  
+  speechSynthesis.speak(utter);
 }
-if (synth) speechSynthesis.onvoiceschanged = function(){synth.getVoices()};
+
+if (synth) {
+  speechSynthesis.onvoiceschanged = function () {
+    synth.getVoices();
+  };
+}
 
 // ── GPS ──────────────────────────────────────────
 let gpsRetryCount = 0;
 const MAX_GPS_RETRIES = 5;
 let gpsInitialized = false;
 
-function startGPS() {
+function enableGPS() {
   if (!navigator.geolocation) {
     setGPS("GPS not supported on this device", "err");
     speak("GPS not supported on this device. Please use a device with location services.");
     return;
   }
   
-  if (gpsInitialized) return;
-  gpsInitialized = true;
+  if (gpsInitialized) {
+    // Already enabled, just show buttons
+    document.getElementById('btn-enable-gps').style.display = 'none';
+    document.getElementById('btn-locate').style.display = 'block';
+    return;
+  }
   
-  console.log("Starting GPS with immediate tracking...");
+  console.log("User enabling GPS - requesting permissions...");
+  setGPS("Requesting location permission...", "wait");
+  
+  // Force immediate GPS reading with user interaction
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      console.log("✅ Initial GPS permission granted:", pos.coords.latitude, pos.coords.longitude);
+      curLat = pos.coords.latitude;
+      curLng = pos.coords.longitude;
+      
+      // Store initial position with accuracy
+      liveNavigation.lastGoodPosition = {
+        lat: curLat,
+        lng: curLng,
+        accuracy: pos.coords.accuracy || 999
+      };
+      
+      gpsInitialized = true;
+      startGPS();
+      
+      // Show other GPS buttons
+      document.getElementById('btn-enable-gps').style.display = 'none';
+      document.getElementById('btn-locate').style.display = 'block';
+      document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
+      
+      speak("GPS enabled successfully. Location services are now active.");
+    },
+    err => {
+      console.error("❌ GPS permission denied:", err);
+      setGPS("Location permission required for navigation", "err");
+      speak("Location access is required for navigation. Please allow location access and try again.");
+    },
+    {enableHighAccuracy: true, timeout: 10000, maximumAge: 0}
+  );
+}
+
+function startGPS() {
+  if (!navigator.geolocation || !gpsInitialized) {
+    console.log("GPS not ready or not initialized");
+    return;
+  }
+  
+  console.log("Starting GPS tracking...");
   setGPS("Starting location services...", "wait");
   
-  // Start tracking immediately - mobile browsers handle permissions automatically
   startGPSTracking();
 }
 
@@ -616,15 +675,26 @@ function startGPSTracking() {
       
       console.log(`📍 GPS SUCCESS: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}, accuracy: ${accuracy}m, speed: ${speed}`);
       
-      // Accept ANY GPS reading - don't be picky about accuracy
-      curLat = newLat;
-      curLng = newLng;
-      
-      // Update live navigation if active
-      if (liveNavigation.active && liveNavigation.lastPosition) {
-        updateLiveNavigation(newLat, newLng);
-      } else if (!liveNavigation.lastPosition) {
-        liveNavigation.lastPosition = {lat: newLat, lng: newLng};
+      // Accept GPS readings within accuracy threshold
+      if (accuracy <= liveNavigation.maxAccuracy) {
+        curLat = newLat;
+        curLng = newLng;
+        
+        // Store position with accuracy
+        liveNavigation.lastGoodPosition = {
+          lat: newLat,
+          lng: newLng,
+          accuracy: accuracy
+        };
+        
+        // Update live navigation if active
+        if (liveNavigation.active && liveNavigation.lastPosition) {
+          updateLiveNavigation(newLat, newLng, accuracy);
+        } else if (!liveNavigation.lastPosition) {
+          liveNavigation.lastPosition = {lat: newLat, lng: newLng};
+        }
+      } else {
+        console.log(`⚠️ GPS accuracy too poor: ${accuracy}m > ${liveNavigation.maxAccuracy}m - ignoring`);
       }
       
       // Show GPS status with quality indicator
@@ -1127,7 +1197,7 @@ function startLiveTracking() {
   }, 5000);
 }
 
-function updateLiveNavigation(newLat, newLng) {
+function updateLiveNavigation(newLat, newLng, accuracy) {
   if (!liveNavigation.active || !liveNavigation.lastPosition) return;
   
   // Calculate distance moved
@@ -1136,8 +1206,8 @@ function updateLiveNavigation(newLat, newLng) {
     newLat, newLng
   );
   
-  // Only update if movement is significant (reduces GPS noise)
-  if (moved > 1) { // 1 meter minimum movement
+  // Only update if movement is above noise threshold (reduces GPS noise)
+  if (moved >= liveNavigation.minMovement) { // Increased minimum movement for GPS noise filtering
     // Update step counters
     liveNavigation.stepDistance += moved;
     var newSteps = Math.floor(liveNavigation.stepDistance / liveNavigation.stepLength);
@@ -1156,11 +1226,38 @@ function updateLiveNavigation(newLat, newLng) {
     // Check course deviation
     checkCourseDeviation(newLat, newLng);
     
-    // Update position
-    liveNavigation.lastPosition = {lat: newLat, lng: newLng};
+    // Update position with accuracy
+    liveNavigation.lastPosition = {lat: newLat, lng: newLng, accuracy: accuracy};
     
-    console.log(`Live nav update: moved ${moved.toFixed(1)}m, total steps: ${liveNavigation.totalSteps}`);
+    console.log(`Live nav update: moved ${moved.toFixed(1)}m, total steps: ${liveNavigation.totalSteps}, accuracy: ${accuracy}m`);
+  } else {
+    console.log(`Movement too small: ${moved.toFixed(1)}m < ${liveNavigation.minMovement}m threshold - ignoring GPS noise`);
   }
+}
+
+// Debug function for GPS testing
+function debugGPS() {
+  console.log("=== GPS Debug Info ===");
+  console.log("GPS initialized:", gpsInitialized);
+  console.log("Current position:", curLat, curLng);
+  console.log("Last good position:", liveNavigation.lastGoodPosition);
+  console.log("GPS watch ID:", watchId);
+  console.log("Testing direct GPS access...");
+  
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      console.log("✅ Direct GPS test SUCCESS:", {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude, 
+        accuracy: pos.coords.accuracy,
+        timestamp: new Date(pos.timestamp)
+      });
+    },
+    err => {
+      console.error("❌ Direct GPS test FAILED:", err.code, err.message);
+    },
+    {enableHighAccuracy: true, timeout: 5000, maximumAge: 0}
+  );
 }
 
 function checkStepCompletion(lat, lng) {
@@ -1312,7 +1409,7 @@ function updateLiveStatus() {
     } else {
       progressInfo.textContent = "Approaching next instruction...";
     }
-  }
+  } 
 }
 
 // ── Legacy Auto-advance (fallback) ──────────────
@@ -1459,24 +1556,27 @@ window.addEventListener("load", function() {
   optimizeForMobile();
   checkHealth();
   
-  // Start GPS immediately and aggressively
-  console.log("🚀 Initializing GPS...");
-  startGPS();
+  // Don't start GPS automatically - wait for user interaction
+  console.log("🚀 App initialized. GPS requires user permission.");
   
-  // Also try backup GPS method
-  setTimeout(() => {
-    if (!curLat || !curLng) {
-      console.log("🔄 GPS backup attempt...");
-      startGPS();
-    }
-  }, 2000);
+  // Check if GPS is already available (refresh case)
+  if (curLat && curLng && gpsInitialized) {
+    document.getElementById('btn-enable-gps').style.display = 'none';
+    document.getElementById('btn-locate').style.display = 'block';
+    document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
+  }
+
+  // Initialize wake lock support for live navigation
+  if ('wakeLock' in navigator) {
+    console.log("Wake lock API supported");
+  }
   
   setTimeout(function(){
     speak("Welcome to BlindNav. Your destination is Painavu, Idukki District, Kerala. " +
-          "Press Where Am I to hear your location. Toggle the switch to start live navigation. " +
+          "Press Enable GPS Location first, then Where Am I to hear your location. Toggle the switch to start live navigation. " +
           "During navigation, you will receive automatic step-by-step voice directions as you walk. " +
           "For best results, ensure location services are enabled and you have clear sky view.");
-  }, 1500);
+  }, 2000);
 });
 </script>
 </body>
