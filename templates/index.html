@@ -485,6 +485,7 @@ kbd{
 "use strict";
 
 const synth = window.speechSynthesis;
+const API_BASE = window.location.origin;
 
 const DEST = {lat:9.8453, lng:76.9730};
 
@@ -522,7 +523,7 @@ async function checkHealth() {
   // First try a simple ping
   try {
     console.log("📡 Testing basic connectivity...");
-    const pingResponse = await fetch("/api/ping");
+    const pingResponse = await fetch(API_BASE + "/api/ping");
     const pingData = await pingResponse.json();
     console.log("✅ Basic connectivity OK:", pingData);
   } catch(e) {
@@ -536,7 +537,7 @@ async function checkHealth() {
   // Now try the full health check
   try {
     console.log("🏥 Running full health check...");
-    const r = await fetch("/api/health");
+    const r = await fetch(API_BASE + "/api/health");
     const d = await r.json();
     console.log("📊 Health check result:", d);
     
@@ -603,36 +604,52 @@ function enableGPS() {
   console.log("User enabling GPS - requesting permissions...");
   setGPS("Requesting location permission...", "wait");
   
-  // Force immediate GPS reading with user interaction
+  // Stage 1: fast network/WiFi position (no GPS chip needed, instant on Android)
   navigator.geolocation.getCurrentPosition(
     pos => {
-      console.log("✅ Initial GPS permission granted:", pos.coords.latitude, pos.coords.longitude);
+      console.log("✅ Fast network position:", pos.coords.latitude, pos.coords.longitude, "±", pos.coords.accuracy);
       curLat = pos.coords.latitude;
       curLng = pos.coords.longitude;
-      
-      // Store initial position with accuracy
       liveNavigation.lastGoodPosition = {
-        lat: curLat,
-        lng: curLng,
-        accuracy: pos.coords.accuracy || 999
+        lat: curLat, lng: curLng, accuracy: pos.coords.accuracy || 999
       };
-      
+      setGPS(`📍 ${curLat.toFixed(5)}, ${curLng.toFixed(5)} (±${Math.round(pos.coords.accuracy||999)}m — refining…)`, "ok");
+
       gpsInitialized = true;
-      startGPS();
-      
-      // Show other GPS buttons
+      startGPS(); // start precise watchPosition in background
+
       document.getElementById('btn-enable-gps').style.display = 'none';
       document.getElementById('btn-locate').style.display = 'block';
       document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
-      
-      speak("GPS enabled successfully. Location services are now active.");
+
+      speak("Location found. GPS is refining accuracy in the background.");
     },
     err => {
-      console.error("❌ GPS permission denied:", err);
-      setGPS("Location permission required for navigation", "err");
-      speak("Location access is required for navigation. Please allow location access and try again.");
+      // Stage 1 failed — try high-accuracy directly
+      console.warn("⚠️ Fast position failed, trying high-accuracy:", err.message);
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          curLat = pos.coords.latitude;
+          curLng = pos.coords.longitude;
+          liveNavigation.lastGoodPosition = {
+            lat: curLat, lng: curLng, accuracy: pos.coords.accuracy || 999
+          };
+          gpsInitialized = true;
+          startGPS();
+          document.getElementById('btn-enable-gps').style.display = 'none';
+          document.getElementById('btn-locate').style.display = 'block';
+          document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
+          speak("GPS enabled successfully. Location services are now active.");
+        },
+        err2 => {
+          console.error("❌ GPS permission denied:", err2);
+          setGPS("Location permission required for navigation", "err");
+          speak("Location access is required. Please allow location access and try again.");
+        },
+        {enableHighAccuracy: true, timeout: 30000, maximumAge: 60000}
+      );
     },
-    {enableHighAccuracy: true, timeout: 10000, maximumAge: 0}
+    {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000}
   );
 }
 
@@ -655,11 +672,11 @@ function startGPSTracking() {
   
   setGPS("Acquiring GPS signal...", "wait");
   
-  // Aggressive GPS settings for mobile - prioritize getting ANY location first
+  // Give the GPS chip enough warm-up time; accept cached network positions while it locks
   const gpsOptions = {
     enableHighAccuracy: true,
-    maximumAge: 500,        // Very fresh positions
-    timeout: 5000           // Quick timeout to avoid hanging
+    maximumAge: 30000,      // Accept positions up to 30 s old (covers WiFi/network fixes)
+    timeout: 30000          // 30 s — enough for cold GPS start indoors
   };
   
   console.log("Starting GPS watch with options:", gpsOptions);
@@ -725,15 +742,20 @@ function startGPSTracking() {
     gpsOptions
   );
   
-  // Also try to get immediate position
+  // Quick low-accuracy seed — populates curLat/curLng before watchPosition fires
   navigator.geolocation.getCurrentPosition(
     function(pos) {
-      console.log("📍 Got immediate position:", pos.coords.latitude, pos.coords.longitude);
+      if (curLat === null) {
+        curLat = pos.coords.latitude;
+        curLng = pos.coords.longitude;
+        console.log("📍 Seed position:", curLat, curLng);
+        setGPS(`📍 ${curLat.toFixed(5)}, ${curLng.toFixed(5)} (±${Math.round(pos.coords.accuracy||999)}m — refining…)`, "ok");
+      }
     },
     function(err) {
-      console.log("⚠️ Immediate position failed:", err.message);
+      console.log("⚠️ Seed position failed (non-fatal):", err.message);
     },
-    {enableHighAccuracy: false, timeout: 3000, maximumAge: 10000}
+    {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000}
   );
 }
 
@@ -865,11 +887,12 @@ function testGPS() {
 // ── API fetch wrapper ────────────────────────────
 async function apiPost(url, body, retries = 2) {
   let lastError;
+  const endpoint = API_BASE + url;
   
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      console.log(`📡 API call attempt ${attempt + 1} to ${url}`);
-      const r = await fetch(url, {
+      console.log(`📡 API call attempt ${attempt + 1} to ${endpoint}`);
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -879,11 +902,11 @@ async function apiPost(url, body, retries = 2) {
       });
       
       if (!r.ok) {
-        throw new Error(`HTTP ${r.status} ${r.statusText} from ${url}`);
+        throw new Error(`HTTP ${r.status} ${r.statusText} from ${endpoint}`);
       }
       
       const data = await r.json();
-      console.log(`✅ API call successful to ${url}`);
+      console.log(`✅ API call successful to ${endpoint}`);
       return data;
       
     } catch (e) {
@@ -920,7 +943,7 @@ async function whereAmI() {
           console.log("❌ Forced GPS failed:", error.message);
           speak("Unable to get GPS location. Please check your device settings.");
         },
-        {enableHighAccuracy: true, timeout: 5000, maximumAge: 0}
+        {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000}
       );
     }
     return;
@@ -1555,6 +1578,13 @@ document.addEventListener('visibilitychange', function() {
 window.addEventListener("load", function() {
   optimizeForMobile();
   checkHealth();
+
+  // Mobile fallback: one user click can reliably trigger the GPS permission prompt.
+  document.addEventListener("click", function() {
+    if (!gpsInitialized) {
+      enableGPS();
+    }
+  }, { once: true });
   
   // Don't start GPS automatically - wait for user interaction
   console.log("🚀 App initialized. GPS requires user permission.");

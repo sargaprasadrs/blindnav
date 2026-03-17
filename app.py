@@ -29,8 +29,8 @@ def internal_error(error):
     return "Internal server error", 500
 
 # ── FIXED DESTINATION ─────────────────────────────────────────────────
-PAINAVU_LAT  = 9.8453
-PAINAVU_LNG  = 76.9730
+PAINAVU_LAT  = 9.8465
+PAINAVU_LNG  = 76.9469
 PAINAVU_NAME = "Painavu, Idukki District, Kerala"
 
 # ── CONFIG ────────────────────────────────────────────────────────────
@@ -68,6 +68,120 @@ def cardinal(bearing):
             "south", "south-west", "west", "north-west"]
     return dirs[round(bearing / 45) % 8]
 
+def maneuver_to_blind_friendly(mtype, modifier, bearing):
+    """Convert maneuver type and modifier to blind-friendly direction words.
+    Uses forward/left/right/back (with slight/sharp variants) instead of compass directions."""
+    if modifier == "straightahead":
+        return "forward"
+    elif "sharp" in modifier and "left" in modifier:
+        return "sharply left"
+    elif "sharp" in modifier and "right" in modifier:
+        return "sharply right"
+    elif "slight" in modifier and "left" in modifier:
+        return "slightly left"
+    elif "slight" in modifier and "right" in modifier:
+        return "slightly right"
+    elif "left" in modifier:
+        return "left"
+    elif "right" in modifier:
+        return "right"
+    elif "uturn" in modifier:
+        return "back"
+    else:
+        return "forward"
+
+def build_reminder(mtype, modifier, distance):
+    """Generate a pre-turn reminder for approximately 5 steps before the turn.
+    Fires when approximately 10-15m from the maneuver point."""
+    if mtype not in ("turn", "fork", "new name", "merge"):
+        return None
+    
+    # Build the direction phrase
+    direction = maneuver_to_blind_friendly(mtype, modifier, 0)
+    
+    if mtype == "fork":
+        if "left" in modifier:
+            return "Reminder. In about 5 steps, keep left at the fork."
+        elif "right" in modifier:
+            return "Reminder. In about 5 steps, keep right at the fork."
+        else:
+            return "Reminder. In about 5 steps, continue at the fork."
+    elif mtype == "merge":
+        if "left" in modifier:
+            return "Reminder. In about 5 steps, merge left."
+        elif "right" in modifier:
+            return "Reminder. In about 5 steps, merge right."
+        else:
+            return "Reminder. In about 5 steps, merge ahead."
+    elif mtype == "new name":
+        if "left" in modifier:
+            return "Reminder. In about 5 steps, bear left."
+        elif "right" in modifier:
+            return "Reminder. In about 5 steps, bear right."
+        else:
+            return "Reminder. In about 5 steps, continue straight."
+    else:  # Standard turn
+        return f"Reminder. In about 5 steps, turn {direction}."
+
+def build_post_turn_guidance(current_step, next_step):
+    """Generate post-turn guidance that announces the turn made and the next segment.
+    Fires immediately after a turn is detected."""
+    if not current_step or not next_step:
+        return None
+    
+    curr_maneuver = current_step.get("maneuver", {})
+    curr_type = curr_maneuver.get("type", "")
+    curr_modifier = curr_maneuver.get("modifier", "")
+    
+    next_maneuver = next_step.get("maneuver", {})
+    next_type = next_maneuver.get("type", "")
+    next_modifier = next_maneuver.get("modifier", "")
+    next_distance = next_step.get("distance", 0)
+    next_st = steps_text(next_distance)
+    next_mt = metres_text(next_distance)
+    next_name = next_step.get("name", "")
+    
+    # Describe current action
+    if curr_type == "arrive":
+        return "You have arrived at your destination."
+    elif curr_type in ("turn", "end of road"):
+        if "sharp" in curr_modifier and "left" in curr_modifier:
+            action = "You turned sharply left."
+        elif "sharp" in curr_modifier and "right" in curr_modifier:
+            action = "You turned sharply right."
+        elif "slight" in curr_modifier and "left" in curr_modifier:
+            action = "You turned slightly left."
+        elif "slight" in curr_modifier and "right" in curr_modifier:
+            action = "You turned slightly right."
+        elif "left" in curr_modifier:
+            action = "You turned left."
+        elif "right" in curr_modifier:
+            action = "You turned right."
+        elif "uturn" in curr_modifier:
+            action = "You made a U-turn."
+        else:
+            action = "You continued straight."
+    elif curr_type == "fork":
+        if "left" in curr_modifier:
+            action = "You kept left at the fork."
+        elif "right" in curr_modifier:
+            action = "You kept right at the fork."
+        else:
+            action = "You continued at the fork."
+    else:
+        action = None
+    
+    if not action:
+        return None
+    
+    # Describe next segment and upcoming turn
+    if next_type == "arrive":
+        return f"{action} Walk {next_st} ({next_mt}) to arrive at your destination."
+    else:
+        next_direction = maneuver_to_blind_friendly(next_type, next_modifier, 0)
+        road_info = f" onto {next_name}" if next_name else ""
+        return f"{action} Walk {next_st} ({next_mt}){road_info} to the next turn {next_direction}."
+
 def haversine_distance(lat1, lon1, lat2, lon2):
     from math import radians, sin, cos, sqrt, atan2
     R = 6371000
@@ -87,20 +201,21 @@ def build_instruction(s):
     mt      = metres_text(dist)
 
     if mtype == "depart":
-        action = f"Start walking {cardinal(bearing)}"
+        # Use blind-friendly "forward" instead of compass direction
+        action = "Start walking forward"
     elif mtype == "arrive":
         if   "left"  in mod: return "You have arrived at Painavu. The destination is on your left."
         elif "right" in mod: return "You have arrived at Painavu. The destination is on your right."
         else:                return "You have arrived at Painavu."
     elif mtype in ("turn", "end of road"):
-        if   "sharp"  in mod and "left"  in mod: action = "Take a sharp left turn"
-        elif "sharp"  in mod and "right" in mod: action = "Take a sharp right turn"
-        elif "slight" in mod and "left"  in mod: action = "Turn slightly to the left"
-        elif "slight" in mod and "right" in mod: action = "Turn slightly to the right"
+        if   "sharp"  in mod and "left"  in mod: action = "Turn sharply left"
+        elif "sharp"  in mod and "right" in mod: action = "Turn sharply right"
+        elif "slight" in mod and "left"  in mod: action = "Turn slightly left"
+        elif "slight" in mod and "right" in mod: action = "Turn slightly right"
         elif "left"  in mod: action = "Turn left"
         elif "right" in mod: action = "Turn right"
         elif "uturn" in mod: action = "Make a U-turn"
-        else: action = "Continue straight ahead"
+        else: action = "Continue straight"
     elif mtype in ("new name", "continue"):
         if   "left"  in mod: action = "Bear left"
         elif "right" in mod: action = "Bear right"
@@ -117,7 +232,7 @@ def build_instruction(s):
     else:
         action = f"Go {mod}" if mod else "Continue walking"
 
-    road_part = f" along {road}" if road else ""
+    road_part = f" onto {road}" if road else ""
     return f"{action}, then walk {st} ({mt}){road_part}."
 
 # ── API ROUTES ────────────────────────────────────────────────────────
@@ -271,23 +386,36 @@ def navigate():
 
         nav = []
         n = 0
+        steps_data = []
         for leg in route["legs"]:
-            for s in leg["steps"]:
-                instr = build_instruction(s)
-                if not instr:
-                    continue
-                if s["distance"] < 2 and s["maneuver"]["type"] not in ("depart", "arrive"):
-                    continue
-                n += 1
-                nav.append({
-                    "n":           n,
-                    "action":      instr,  # Changed from instruction to action
-                    "distance":    round(s["distance"], 1),  # Changed from meters to distance  
-                    "step_count":  steps(s["distance"]),  # Changed from steps to step_count
-                    "type":        s["maneuver"].get("type", ""),
-                    "lat":         s["maneuver"]["location"][1] if len(s["maneuver"].get("location", [])) >= 2 else None,
-                    "lng":         s["maneuver"]["location"][0] if len(s["maneuver"].get("location", [])) >= 2 else None
-                })
+            steps_data.extend(leg["steps"])
+        
+        for idx, s in enumerate(steps_data):
+            instr = build_instruction(s)
+            if not instr:
+                continue
+            if s["distance"] < 2 and s["maneuver"]["type"] not in ("depart", "arrive"):
+                continue
+            n += 1
+            
+            # Build next step info for post-turn guidance (if this isn't the last step)
+            next_step = steps_data[idx + 1] if idx + 1 < len(steps_data) else None
+            post_turn = build_post_turn_guidance(s, next_step) if next_step else None
+            
+            # Build reminder (fires about 5 steps before this maneuver)
+            reminder = build_reminder(s["maneuver"].get("type"), s["maneuver"].get("modifier"), s["distance"])
+            
+            nav.append({
+                "n":           n,
+                "action":      instr,  # Changed from instruction to action
+                "distance":    round(s["distance"], 1),  # Changed from meters to distance  
+                "step_count":  steps(s["distance"]),  # Changed from steps to step_count
+                "type":        s["maneuver"].get("type", ""),
+                "lat":         s["maneuver"]["location"][1] if len(s["maneuver"].get("location", [])) >= 2 else None,
+                "lng":         s["maneuver"]["location"][0] if len(s["maneuver"].get("location", [])) >= 2 else None,
+                "reminder":    reminder,  # Pre-turn reminder (fires ~5 steps before)
+                "post_turn":   post_turn  # Post-turn guidance (fires after turn is detected)
+            })
 
         summary = (f"Route to Painavu found. "
                    f"Total distance: {metres_text(total_m)}, "
