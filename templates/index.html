@@ -13,97 +13,22 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-
 :root{
-  --bg:          #111;
-  --surface:     #1a1a1a;
-  --surface-2:   #222;
-  --border:      #333;
-  --text:        #ddd;
-  --text-dim:    #888;
-  --accent:      #e0a800;
-  --accent-dim:  #a07800;
-  --green:       #2ecc71;
-  --red:         #e74c3c;
+  --bg:#111;--surface:#1a1a1a;--surface-2:#222;--border:#333;
+  --text:#ddd;--text-dim:#888;--accent:#e0a800;--accent-dim:#a07800;
+  --green:#2ecc71;--red:#e74c3c;
 }
-
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  line-height:1.5;
-  font-size:17px;
-}
-
-.container{
-  max-width:520px;
-  margin:0 auto;
-  padding:16px;
-}
-
-/* ── Header ── */
-.header{
-  text-align:center;
-  padding:20px 0 12px;
-  border-bottom:1px solid var(--border);
-  margin-bottom:16px;
-}
-.header h1{
-  font-size:22px;
-  font-weight:700;
-  letter-spacing:1px;
-  color:var(--text);
-}
-.header p{
-  font-size:13px;
-  color:var(--text-dim);
-  margin-top:4px;
-}
-
-/* ── Destination info ── */
-.dest-info{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:14px 16px;
-  margin-bottom:16px;
-}
-.dest-info .label{
-  font-size:11px;
-  text-transform:uppercase;
-  letter-spacing:1.5px;
-  color:var(--text-dim);
-  margin-bottom:2px;
-}
-.dest-info .value{
-  font-size:18px;
-  font-weight:700;
-  color:var(--accent);
-}
-.dest-info .sub{
-  font-size:12px;
-  color:var(--text-dim);
-  margin-top:2px;
-  font-family:monospace;
-}
-
-/* ── GPS bar ── */
-.gps-bar{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:10px 14px;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:8px;
-  margin-bottom:16px;
-  font-size:13px;
-}
-.gps-indicator{
-  width:8px;height:8px;
-  border-radius:50%;
-  flex-shrink:0;
-}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;font-size:17px}
+.container{max-width:520px;margin:0 auto;padding:16px}
+.header{text-align:center;padding:20px 0 12px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.header h1{font-size:22px;font-weight:700;letter-spacing:1px;color:var(--text)}
+.header p{font-size:13px;color:var(--text-dim);margin-top:4px}
+.dest-info{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+.dest-info .label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:2px}
+.dest-info .value{font-size:18px;font-weight:700;color:var(--accent)}
+.dest-info .sub{font-size:12px;color:var(--text-dim);margin-top:2px;font-family:monospace}
+.gps-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;font-size:13px}
+.gps-indicator{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .gps-indicator.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
 .gps-indicator.wait{background:#f39c12;animation:pulse 1.2s infinite}
 .gps-indicator.err{background:var(--red)}
@@ -112,330 +37,102 @@ body{
 #server-status{font-size:12px;color:var(--text-dim);text-align:right;margin-bottom:12px}
 #server-status.ok{color:var(--green)}
 #server-status.fail{color:var(--red)}
-
-/* ── Buttons ── */
-button{
-  display:block;
-  width:100%;
-  padding:14px 20px;
-  font-size:17px;
-  font-weight:600;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  transition:background .15s,opacity .15s;
-  font-family:inherit;
-  color:#fff;
-}
+button{display:block;width:100%;padding:14px 20px;font-size:17px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:background .15s,opacity .15s;font-family:inherit;color:#fff}
 button:active{opacity:.85}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button:disabled{opacity:.4;cursor:not-allowed}
-
-.btn-secondary{
-  background:var(--surface-2);
-  border:1px solid var(--border);
-  color:var(--text);
-  margin-bottom:8px;
-}
+.btn-secondary{background:var(--surface-2);border:1px solid var(--border);color:var(--text);margin-bottom:8px}
 .btn-secondary:hover:not(:disabled){background:#2a2a2a}
-
-.btn-primary{
-  background:var(--accent-dim);
-  color:#fff;
-  margin-bottom:8px;
-}
+.btn-primary{background:var(--accent-dim);color:#fff;margin-bottom:8px}
 .btn-primary:hover:not(:disabled){background:var(--accent)}
-
-.btn-danger{
-  background:#c0392b;
-  margin-bottom:8px;
-}
+.btn-danger{background:#c0392b;margin-bottom:8px}
 .btn-danger:hover{background:var(--red)}
-
 .btn-row{display:flex;gap:8px;margin-bottom:8px}
 .btn-row button{flex:1;margin-bottom:0}
-
-/* ── Output boxes ── */
-.output{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:12px 14px;
-  font-size:15px;
-  color:var(--text-dim);
-  min-height:20px;
-  margin-bottom:16px;
-  word-wrap:break-word;
-}
-.output:empty::before{
-  content:'—';
-  color:#444;
-}
+.output{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:15px;color:var(--text-dim);min-height:20px;margin-bottom:16px;word-wrap:break-word}
+.output:empty::before{content:'—';color:#444}
 .output.error{border-color:var(--red);color:var(--red)}
-
-/* ── Section labels ── */
-.section-label{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:1.5px;
-  color:var(--text-dim);
-  margin-bottom:8px;
-  padding-left:2px;
-}
-
-/* ── Toggle switch ── */
-.toggle-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:16px;
-  margin-bottom:8px;
-  cursor:pointer;
-  user-select:none;
-  -webkit-tap-highlight-color:transparent;
-}
+.section-label{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:8px;padding-left:2px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:8px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
 .toggle-row:hover{background:var(--surface-2)}
 .toggle-label{font-size:16px;font-weight:600}
 .toggle-sub{font-size:12px;color:var(--text-dim);margin-top:2px}
-
-.toggle-track{
-  position:relative;
-  width:56px;height:30px;
-  background:#333;
-  border-radius:15px;
-  transition:background .25s;
-  flex-shrink:0;
-}
-.toggle-track::after{
-  content:'';
-  position:absolute;
-  top:3px;left:3px;
-  width:24px;height:24px;
-  background:#888;
-  border-radius:50%;
-  transition:transform .25s,background .25s;
-}
+.toggle-track{position:relative;width:56px;height:30px;background:#333;border-radius:15px;transition:background .25s;flex-shrink:0}
+.toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;background:#888;border-radius:50%;transition:transform .25s,background .25s}
 .toggle-row.active .toggle-track{background:var(--accent-dim)}
-.toggle-row.active .toggle-track::after{
-  transform:translateX(26px);
-  background:var(--accent);
-}
-
-/* ── Nav panel ── */
-.nav-panel{
-  display:none;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:8px;
-  overflow:hidden;
-  margin-bottom:16px;
-}
+.toggle-row.active .toggle-track::after{transform:translateX(26px);background:var(--accent)}
+.nav-panel{display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px}
 .nav-panel.visible{display:block}
-
-.nav-summary{
-  padding:12px 16px;
-  font-size:14px;
-  color:var(--text-dim);
-  border-bottom:1px solid var(--border);
-  line-height:1.6;
-}
-.nav-current{
-  padding:16px;
-  font-size:18px;
-  font-weight:600;
-  color:var(--text);
-  border-bottom:1px solid var(--border);
-  min-height:70px;
-  line-height:1.5;
-}
-.nav-controls{
-  display:flex;
-  border-bottom:1px solid var(--border);
-}
-.nav-btn{
-  flex:1;
-  padding:14px 8px;
-  font-size:15px;
-  font-weight:600;
-  background:transparent;
-  color:var(--text-dim);
-  border:none;
-  border-right:1px solid var(--border);
-  cursor:pointer;
-  transition:background .12s,color .12s;
-  font-family:inherit;
-  width:auto;
-  margin:0;
-  border-radius:0;
-}
-.nav-btn:last-child{border-right:none}
-.nav-btn:hover{background:var(--surface-2);color:var(--text)}
-.nav-btn:active{background:#2a2a2a}
-
-.step-list{
-  max-height:35vh;
-  overflow-y:auto;
-  padding:8px;
-}
-.step-item{
-  padding:10px 12px;
-  margin:4px 0;
-  border-radius:6px;
-  background:var(--bg);
-  border-left:3px solid transparent;
-  font-size:14px;
-  cursor:pointer;
-  transition:border-color .15s,background .15s;
-}
+.nav-summary{padding:12px 16px;font-size:14px;color:var(--text-dim);border-bottom:1px solid var(--border);line-height:1.6}
+.nav-current{padding:16px;font-size:18px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);min-height:70px;line-height:1.5}
+.step-list{max-height:35vh;overflow-y:auto;padding:8px}
+.step-item{padding:10px 12px;margin:4px 0;border-radius:6px;background:var(--bg);border-left:3px solid transparent;font-size:14px;cursor:pointer;transition:border-color .15s,background .15s}
 .step-item:hover{background:var(--surface-2)}
-.step-item.active{
-  border-left-color:var(--accent);
-  background:var(--surface-2);
-}
-.step-item .snum{
-  font-weight:700;
-  color:var(--accent);
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:.5px;
-}
+.step-item.active{border-left-color:var(--accent);background:var(--surface-2)}
+.step-item .snum{font-weight:700;color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
 .step-item .sinstr{margin-top:2px}
-.step-item .smeta{
-  font-size:12px;
-  color:var(--text-dim);
-  margin-top:4px;
-}
-
-/* ── Debug / Map ── */
-.debug-section{
-  border-top:1px solid var(--border);
-  margin-top:16px;
-  padding-top:16px;
-}
-.debug-toggle{
-  font-size:13px;
-  color:var(--text-dim);
-  background:none;
-  border:1px dashed var(--border);
-  padding:8px;
-  cursor:pointer;
-  margin-bottom:8px;
-  font-family:inherit;
-}
+.step-item .smeta{font-size:12px;color:var(--text-dim);margin-top:4px}
+.debug-section{border-top:1px solid var(--border);margin-top:16px;padding-top:16px}
+.debug-toggle{font-size:13px;color:var(--text-dim);background:none;border:1px dashed var(--border);padding:8px;cursor:pointer;margin-bottom:8px;font-family:inherit}
 .debug-toggle:hover{color:var(--text);border-color:var(--text-dim)}
 #map-wrap{display:none;margin-top:8px}
-#map{
-  height:250px;
-  border-radius:8px;
-  border:1px solid var(--border);
-}
-.map-hint{
-  font-size:12px;
-  color:var(--text-dim);
-  text-align:center;
-  margin-top:6px;
-}
-
-/* ── Error log ── */
-#error-log{
-  display:none;
-  background:#1a0000;
-  border:1px solid #400;
-  border-radius:8px;
-  padding:12px;
-  margin-bottom:16px;
-  font-size:13px;
-  font-family:monospace;
-  color:var(--red);
-  max-height:150px;
-  overflow-y:auto;
-  word-break:break-all;
-}
-
-/* ── Keyboard hints ── */
-.kb-hints{
-  text-align:center;
-  font-size:11px;
-  color:#555;
-  padding:8px 0;
-  letter-spacing:.3px;
-}
-kbd{
-  display:inline-block;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:3px;
-  padding:1px 5px;
-  font-size:10px;
-  font-family:monospace;
-  color:var(--text-dim);
-}
-
-/* ── Leaflet overrides ── */
-.leaflet-control-zoom a{
-  background:var(--surface)!important;
-  color:var(--text)!important;
-  border-color:var(--border)!important;
-}
-.leaflet-control-attribution{
-  font-size:9px!important;
-  background:rgba(0,0,0,.8)!important;
-  color:#555!important;
-}
-
+#map{height:250px;border-radius:8px;border:1px solid var(--border)}
+.map-hint{font-size:12px;color:var(--text-dim);text-align:center;margin-top:6px}
+#error-log{display:none;background:#1a0000;border:1px solid #400;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;font-family:monospace;color:var(--red);max-height:150px;overflow-y:auto;word-break:break-all}
+.kb-hints{text-align:center;font-size:11px;color:#555;padding:8px 0;letter-spacing:.3px}
+kbd{display:inline-block;background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:monospace;color:var(--text-dim)}
+.leaflet-control-zoom a{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
+.leaflet-control-attribution{font-size:9px!important;background:rgba(0,0,0,.8)!important;color:#555!important}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+
+/* Live voice log */
+#voice-log{
+  background:#0a0a0a;border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;margin-bottom:16px;max-height:120px;overflow-y:auto;
+  font-size:13px;color:var(--text-dim);font-family:monospace;display:none;
+}
+#voice-log .vl-entry{padding:2px 0;border-bottom:1px solid #1a1a1a}
+#voice-log .vl-entry:last-child{border-bottom:none}
+#voice-log .vl-time{color:#555;margin-right:6px}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-  <!-- Header -->
   <div class="header">
     <h1>BLINDNAV</h1>
     <p>Walking navigation assistant</p>
   </div>
 
-  <!-- Server health -->
   <div id="server-status">Checking server connection...</div>
 
-  <!-- Destination -->
   <div class="dest-info">
     <div class="label">Fixed Destination</div>
     <div class="value">Painavu</div>
-    <div class="sub">9.8453 N, 76.9730 E &middot; Idukki, Kerala &middot; 685603</div>
+    <div class="sub">9.8465 N, 76.9469 E &middot; Idukki, Kerala</div>
   </div>
 
-  <!-- GPS -->
   <div class="gps-bar">
     <div class="gps-indicator wait" id="gps-dot"></div>
     <div class="gps-label" id="gps-text">Acquiring GPS signal</div>
   </div>
 
-  <!-- Error log -->
   <div id="error-log"></div>
 
-  <!-- Where Am I -->
   <div class="section-label">Current Location</div>
   <div class="btn-row">
-    <button class="btn-primary" id="btn-enable-gps" onclick="enableGPS()" style="display:block;">
+    <button class="btn-primary" id="btn-enable-gps" onclick="enableGPS()">
       📍 Enable GPS Location
     </button>
     <button class="btn-secondary" id="btn-locate" onclick="whereAmI()" style="display:none;">
       Where Am I?
     </button>
-    <button class="btn-secondary" onclick="testGPS()" style="font-size:14px; display:none;">
-      🔧 Test GPS
-    </button>
   </div>
   <div class="output" id="loc-output"></div>
 
-  <!-- Navigation toggle -->
   <div class="section-label">Navigation</div>
   <div class="toggle-row" id="nav-toggle" onclick="handleToggle()" role="switch"
        aria-checked="false" aria-label="Start navigation to Painavu" tabindex="0">
@@ -446,35 +143,33 @@ kbd{
     <div class="toggle-track"></div>
   </div>
 
-  <!-- Live Navigation Status -->
   <div id="live-status" class="output" style="display:none;">
     <div id="live-text">Navigation active</div>
     <div id="progress-info" style="font-size:13px;margin-top:4px;color:var(--text-dim);"></div>
   </div>
 
-  <!-- Nav panel (hidden for blind navigation) -->
-  <div class="nav-panel" id="nav-panel" style="display:none;">
+  <!-- Voice announcement log (debug) -->
+  <div id="voice-log"></div>
+
+  <div class="nav-panel" id="nav-panel">
     <div class="nav-summary" id="nav-summary"></div>
     <div class="nav-current" id="nav-current" aria-live="assertive"></div>
     <div class="step-list" id="step-list"></div>
   </div>
 
-  <!-- Debug section -->
   <div class="debug-section">
     <button class="debug-toggle" onclick="toggleMap()">Toggle test map</button>
+    <button class="debug-toggle" onclick="toggleVoiceLog()" style="margin-left:4px">Toggle voice log</button>
     <div id="map-wrap">
       <div id="map"></div>
       <div class="map-hint">Click on the map to simulate your GPS position</div>
     </div>
   </div>
 
-  <!-- Keyboard hints -->
   <div class="kb-hints">
     <kbd>W</kbd> Location &nbsp;
-    <kbd>&#8594;</kbd> Next &nbsp;
-    <kbd>&#8592;</kbd> Prev &nbsp;
     <kbd>R</kbd> Repeat &nbsp;
-    <kbd>Space</kbd> Toggle &nbsp;
+    <kbd>Space</kbd> Toggle nav &nbsp;
     <kbd>Esc</kbd> Stop
   </div>
 
@@ -484,728 +179,522 @@ kbd{
 <script>
 "use strict";
 
-const synth = window.speechSynthesis;
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║  BLINDNAV — Google-Maps-style live voice navigation            ║
+   ║                                                                 ║
+   ║  Voice announcement philosophy:                                 ║
+   ║  1. After each turn → announce walk distance AND next turn dir  ║
+   ║  2. 10 steps before a turn → pre-turn reminder                 ║
+   ║  3. 3 steps before a turn → urgent reminder                    ║
+   ║  4. On long straights → periodic "continue" every ~30 steps    ║
+   ║  5. Off-route → alert + automatic reroute                      ║
+   ║  6. Never repeat the same sentence back-to-back                ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
 const API_BASE = window.location.origin;
+const DEST = {lat: 9.8465, lng: 76.9469};
 
-// ── Error Handling ──────────────────────────────
-function logError(msg) {
-  const errorLog = document.getElementById("error-log");
-  if (!errorLog) return;
-  
-  const timestamp = new Date().toLocaleTimeString();
-  const line = `[${timestamp}] ${msg}`;
-  
-  console.error(line);
-  errorLog.style.display = "block";
-  errorLog.textContent = line + "\n" + (errorLog.textContent || "");
-  
-  // Keep only last 10 errors
-  const lines = errorLog.textContent.split("\n").slice(0, 10);
-  errorLog.textContent = lines.join("\n");
-}
-
-function clearError() {
-  const errorLog = document.getElementById("error-log");
-  if (errorLog) {
-    errorLog.textContent = "";
-    errorLog.style.display = "none";
-  }
-}
-
-const DEST = {lat:9.8453, lng:76.9730};
-
+// ── Global state ─────────────────────────────────
 let curLat = null, curLng = null;
 let navData = [], curStep = -1, navigating = false;
 let watchId = null;
 let map, curMarker, destMarker, routeLine, mapReady = false;
-
-// Live navigation state
-let liveNavigation = {
-  active: false,
-  lastPosition: null,
-  stepDistance: 0,
-  totalSteps: 0,
-  currentInstruction: null,
-  nextTurnDistance: 0,
-  nextTurnDirection: null,
-  lastAnnouncement: 0,
-  courseDeviation: 0,
-  trackingInterval: null,
-  stepUpdateInterval: null,
-  stepLength: 0.65, // meters per step
-  alertDistances: [100, 50, 30, 20, 10, 5, 3], // distances for turn alerts
-  wakeLock: null,
-  minMovement: 3, // Minimum meters moved to register as movement (increased for GPS noise)
-  maxAccuracy: 100, // Accept GPS readings up to 100m accuracy
-  lastGoodPosition: null, // Store last GPS position with accuracy
-  polyline: null // Route geometry as [lat, lng] points
-}
-
-// ── Health check ─────────────────────────────────
-async function checkHealth() {
-  const el = document.getElementById("server-status");
-  console.log("🔍 Checking server health...");
-  
-  // First try a simple ping
-  try {
-    console.log("📡 Testing basic connectivity...");
-    const pingResponse = await fetch(API_BASE + "/api/ping");
-    const pingData = await pingResponse.json();
-    console.log("✅ Basic connectivity OK:", pingData);
-  } catch(e) {
-    console.error("❌ Basic connectivity failed:", e);
-    el.textContent = "Cannot connect to server. Check if Flask is running on port 5000.";
-    el.className = "fail";
-    logError("Ping failed: " + e.message);
-    return;
-  }
-  
-  // Now try the full health check
-  try {
-    console.log("🏥 Running full health check...");
-    const r = await fetch(API_BASE + "/api/health");
-    const d = await r.json();
-    console.log("📊 Health check result:", d);
-    
-    if (d.ok) {
-      el.textContent = "Server connected. External APIs reachable.";
-      el.className = "ok";
-      console.log("✅ All systems operational");
-    } else {
-      el.textContent = "Server running but API issues: " + (d.errors||[]).join("; ");
-      el.className = "fail";
-      logError("Health check failed: " + JSON.stringify(d.errors));
-    }
-  } catch(e) {
-    console.error("❌ Health check failed:", e);
-    el.textContent = "Health check failed: " + e.message;
-    el.className = "fail";
-    logError("Health check fetch failed: " + e.message);
-  }
-}
-
-// ── Speech ───────────────────────────────────────
-function speak(text, interrupt = true) {
-  if (!('speechSynthesis' in window)) return;
-  
-  if (interrupt) speechSynthesis.cancel();
-  
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.92;
-  utter.pitch = 1;
-  utter.volume = 1;
-  
-  const voices = speechSynthesis.getVoices();
-  const voice = voices.find(v => v.lang.startsWith("en"));
-  if (voice) utter.voice = voice;
-  
-  speechSynthesis.speak(utter);
-}
-
-if (synth) {
-  speechSynthesis.onvoiceschanged = function () {
-    synth.getVoices();
-  };
-}
-
-// ── GPS ──────────────────────────────────────────
-let gpsRetryCount = 0;
+let gpsRetryCount = 0, gpsInitialized = false;
 const MAX_GPS_RETRIES = 5;
-let gpsInitialized = false;
 
-function enableGPS() {
-  if (!navigator.geolocation) {
-    setGPS("GPS not supported on this device", "err");
-    speak("GPS not supported on this device. Please use a device with location services.");
-    return;
-  }
-  
-  if (gpsInitialized) {
-    // Already enabled, just show buttons
-    document.getElementById('btn-enable-gps').style.display = 'none';
-    document.getElementById('btn-locate').style.display = 'block';
-    return;
-  }
-  
-  console.log("User enabling GPS - requesting permissions...");
-  setGPS("Requesting location permission...", "wait");
-  
-  // Stage 1: fast network/WiFi position (no GPS chip needed, instant on Android)
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      console.log("✅ Fast network position:", pos.coords.latitude, pos.coords.longitude, "±", pos.coords.accuracy);
-      curLat = pos.coords.latitude;
-      curLng = pos.coords.longitude;
-      liveNavigation.lastGoodPosition = {
-        lat: curLat, lng: curLng, accuracy: pos.coords.accuracy || 999
-      };
-      setGPS(`📍 ${curLat.toFixed(5)}, ${curLng.toFixed(5)} (±${Math.round(pos.coords.accuracy||999)}m — refining…)`, "ok");
+// ── Voice engine ─────────────────────────────────
+const Voice = {
+  lastSpoken: "",
+  lastSpokeAt: 0,
+  queue: [],
+  speaking: false,
+  minGap: 1500,          // min ms between announcements
+  duplicateWindow: 8000, // don't repeat same text within 8s
 
-      gpsInitialized = true;
-      startGPS(); // start precise watchPosition in background
+  speak(text, priority) {
+    // priority: "urgent" skips duplicate check, "normal" default, "idle" only if silent >20s
+    priority = priority || "normal";
+    const now = Date.now();
 
-      document.getElementById('btn-enable-gps').style.display = 'none';
-      document.getElementById('btn-locate').style.display = 'block';
-      document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
-
-      speak("Location found. GPS is refining accuracy in the background.");
-    },
-    err => {
-      // Stage 1 failed — try high-accuracy directly
-      console.warn("⚠️ Fast position failed, trying high-accuracy:", err.message);
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          curLat = pos.coords.latitude;
-          curLng = pos.coords.longitude;
-          liveNavigation.lastGoodPosition = {
-            lat: curLat, lng: curLng, accuracy: pos.coords.accuracy || 999
-          };
-          gpsInitialized = true;
-          startGPS();
-          document.getElementById('btn-enable-gps').style.display = 'none';
-          document.getElementById('btn-locate').style.display = 'block';
-          document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
-          speak("GPS enabled successfully. Location services are now active.");
-        },
-        err2 => {
-          console.error("❌ GPS permission denied:", err2);
-          setGPS("Location permission required for navigation", "err");
-          speak("Location access is required. Please allow location access and try again.");
-        },
-        {enableHighAccuracy: true, timeout: 30000, maximumAge: 60000}
-      );
-    },
-    {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000}
-  );
-}
-
-function startGPS() {
-  if (!navigator.geolocation || !gpsInitialized) {
-    console.log("GPS not ready or not initialized");
-    return;
-  }
-  
-  console.log("Starting GPS tracking...");
-  setGPS("Starting location services...", "wait");
-  
-  startGPSTracking();
-}
-
-function startGPSTracking() {
-  if (watchId) {
-    navigator.geolocation.clearWatch(watchId);
-  }
-  
-  setGPS("Acquiring GPS signal...", "wait");
-  
-  // Give the GPS chip enough warm-up time; accept cached network positions while it locks
-  const gpsOptions = {
-    enableHighAccuracy: true,
-    maximumAge: 30000,      // Accept positions up to 30 s old (covers WiFi/network fixes)
-    timeout: 30000          // 30 s — enough for cold GPS start indoors
-  };
-  
-  console.log("Starting GPS watch with options:", gpsOptions);
-  
-  watchId = navigator.geolocation.watchPosition(
-    function(pos) {
-      gpsRetryCount = 0; // Reset retry count on success
-      var newLat = pos.coords.latitude;
-      var newLng = pos.coords.longitude;
-      var accuracy = pos.coords.accuracy || 999;
-      var speed = pos.coords.speed;
-      var heading = pos.coords.heading;
-      
-      console.log(`📍 GPS SUCCESS: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}, accuracy: ${accuracy}m, speed: ${speed}`);
-      
-      // Accept GPS readings within accuracy threshold
-      if (accuracy <= liveNavigation.maxAccuracy) {
-        curLat = newLat;
-        curLng = newLng;
-        
-        // Store position with accuracy
-        liveNavigation.lastGoodPosition = {
-          lat: newLat,
-          lng: newLng,
-          accuracy: accuracy
-        };
-        
-        // Update live navigation if active
-        if (liveNavigation.active && liveNavigation.lastPosition) {
-          updateLiveNavigation(newLat, newLng, accuracy);
-        } else if (!liveNavigation.lastPosition) {
-          liveNavigation.lastPosition = {lat: newLat, lng: newLng};
-        }
-      } else {
-        console.log(`⚠️ GPS accuracy too poor: ${accuracy}m > ${liveNavigation.maxAccuracy}m - ignoring`);
-      }
-      
-      // Show GPS status with quality indicator
-      let qualityText = "📍";
-      if (accuracy <= 5) qualityText = "🎯";        // Excellent
-      else if (accuracy <= 15) qualityText = "🟢";   // Good
-      else if (accuracy <= 30) qualityText = "🟡";   // Fair
-      else qualityText = "🔴";                       // Poor but usable
-      
-      const accuracyText = ` (±${Math.round(accuracy)}m)`;
-      setGPS(qualityText + " " + curLat.toFixed(5) + ", " + curLng.toFixed(5) + accuracyText, "ok");
-      updateMapPos();
-      
-      // Only warn about VERY poor accuracy
-      if (liveNavigation.active && accuracy > 50) {
-        if (Date.now() - liveNavigation.lastAnnouncement > 20000) {
-          speak("GPS accuracy is very low. Move to open area for better signal.");
-          liveNavigation.lastAnnouncement = Date.now();
-         }
-      }
-      
-      if (navigating && !liveNavigation.active) checkProximity();
-    },
-    function(err) {
-      console.error("❌ GPS ERROR:", err);
-      handleGPSError(err, false);
-    },
-    gpsOptions
-  );
-  
-  // Quick low-accuracy seed — populates curLat/curLng before watchPosition fires
-  navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      if (curLat === null) {
-        curLat = pos.coords.latitude;
-        curLng = pos.coords.longitude;
-        console.log("📍 Seed position:", curLat, curLng);
-        setGPS(`📍 ${curLat.toFixed(5)}, ${curLng.toFixed(5)} (±${Math.round(pos.coords.accuracy||999)}m — refining…)`, "ok");
-      }
-    },
-    function(err) {
-      console.log("⚠️ Seed position failed (non-fatal):", err.message);
-    },
-    {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000}
-  );
-}
-
-function handleGPSError(err, isInitialRequest) {
-  console.error("❌ GPS Error code", err.code, ":", err.message);
-  gpsRetryCount++;
-  
-  let errorMessage = "GPS error";
-  let spokenMessage = "GPS error";
-  let shouldRetry = true;
-  
-  switch(err.code) {
-    case 1: // PERMISSION_DENIED
-      errorMessage = "📍❌ Location access denied - tap to allow in browser";
-      spokenMessage = "Location access is required for navigation. Please allow location access when your browser asks, then refresh the page.";
-      shouldRetry = false;
-      break;
-    case 2: // POSITION_UNAVAILABLE  
-      errorMessage = "📍⚠️ GPS signal unavailable - retrying...";
-      spokenMessage = "GPS signal unavailable. Trying again...";
-      break;
-    case 3: // TIMEOUT
-      errorMessage = "📍⏱️ GPS timeout - retrying with fallback...";
-      spokenMessage = "GPS taking too long. Retrying...";
-      break;
-    default:
-      errorMessage = `📍❓ GPS error ${err.code} - retrying...`;
-      spokenMessage = "GPS error. Retrying...";
-  }
-  
-  setGPS(errorMessage, "err");
-  
-  // Always speak GPS errors for blind users
-  if (gpsRetryCount <= 2) {
-    speak(spokenMessage);
-  }
-  
-  // Vibrate to alert user
-  if (navigator.vibrate) {
-    navigator.vibrate([200, 100, 200]);
-  }
-  
-  // Aggressive retry strategy
-  if (shouldRetry && gpsRetryCount < MAX_GPS_RETRIES) {
-    const retryDelay = Math.min(2000 * gpsRetryCount, 10000); // Escalating delay
-    console.log(`🔄 Retrying GPS in ${retryDelay}ms (attempt ${gpsRetryCount}/${MAX_GPS_RETRIES})`);
-    
-    setTimeout(() => {
-      console.log("🔄 Retry attempt", gpsRetryCount);
-      startGPSTracking();
-    }, retryDelay);
-  } else if (gpsRetryCount >= MAX_GPS_RETRIES) {
-    setGPS("📍💀 GPS failed after multiple attempts - use test map", "err");
-    speak("GPS has failed multiple times. You can test the app using the test map at the bottom of the page.");
-  }
-}
-
-function setGPS(msg, type) {
-  document.getElementById("gps-dot").className = "gps-indicator " + type;
-  document.getElementById("gps-text").textContent = msg;
-}
-
-// ── GPS Test Function ──────────────────────────────
-function testGPS() {
-  console.log("🧪 GPS Test Started");
-  speak("Testing GPS. Please wait.");
-  
-  const output = document.getElementById("loc-output");
-  output.textContent = "🧪 Testing GPS capabilities...";
-  output.className = "output";
-  
-  if (!navigator.geolocation) {
-    output.textContent = "❌ Geolocation not supported";
-    speak("GPS not supported on this device");
-    return;
-  }
-  
-  // Test 1: Check if geolocation object exists
-  console.log("✅ Geolocation API available");
-  
-  // Test 2: Try getCurrentPosition with different settings
-  const tests = [
-    {name: "High accuracy", options: {enableHighAccuracy: true, timeout: 10000, maximumAge: 0}},
-    {name: "Low accuracy", options: {enableHighAccuracy: false, timeout: 5000, maximumAge: 60000}},
-    {name: "Fast response", options: {enableHighAccuracy: true, timeout: 3000, maximumAge: 10000}}
-  ];
-  
-  let testIndex = 0;
-  
-  function runNextTest() {
-    if (testIndex >= tests.length) {
-      output.textContent = "❌ All GPS tests failed. Check device settings.";
-      speak("GPS tests failed. Please check your device location settings.");
-      return;
-    }
-    
-    const test = tests[testIndex];
-    output.textContent = `🧪 Testing: ${test.name}...`;
-    console.log(`🧪 Test ${testIndex + 1}: ${test.name}`, test.options);
-    
-    navigator.geolocation.getCurrentPosition(
-      function(position) {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const acc = position.coords.accuracy;
-        
-        console.log(`✅ GPS Test SUCCESS: ${lat}, ${lng}, accuracy: ${acc}m`);
-        output.textContent = `✅ GPS Works! Location: ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${Math.round(acc)}m)`;
-        
-        // Update main GPS variables
-        curLat = lat;
-        curLng = lng;
-        setGPS(`🎯 ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${Math.round(acc)}m)`, "ok");
-        
-        speak(`GPS test successful. Location acquired with ${Math.round(acc)} meter accuracy.`);
-      },
-      function(error) {
-        console.log(`❌ Test ${testIndex + 1} failed:`, error.message);
-        testIndex++;
-        setTimeout(runNextTest, 1000);
-      },
-      test.options
-    );
-  }
-  
-  runNextTest();
-}
-
-// ── API fetch wrapper ────────────────────────────
-async function apiPost(url, body, retries = 2) {
-  let lastError;
-  const endpoint = API_BASE + url;
-  
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      console.log(`📡 API call attempt ${attempt + 1} to ${endpoint}`, body);
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-      
-      if (!r.ok) {
-        const errorText = await r.text();
-        console.error(`❌ HTTP error response: ${errorText}`);
-        logError(`HTTP ${r.status} from ${endpoint}: ${errorText}`);
-        throw new Error(`HTTP ${r.status} ${r.statusText} from ${endpoint}`);
-      }
-      
-      const data = await r.json();
-      console.log(`✅ API call successful to ${endpoint}:`, data);
-      return data;
-      
-    } catch (e) {
-      console.error(`❌ API call attempt ${attempt + 1} failed:`, e);
-      lastError = e;
-      logError(`API ${url} attempt ${attempt + 1} failed: ${e.message}`);
-      
-      if (attempt < retries - 1) {
-        console.log(`🔄 Retrying API call in 1 second...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-  }
-  
-  throw new Error(`API call failed after ${retries} attempts: ${lastError.message}`);
-}
-
-// ── Where Am I ───────────────────────────────────
-async function whereAmI() {
-  if (curLat === null || curLng === null) {
-    speak("GPS position not available. Please ensure location services are enabled and try again.");
-    
-    // Try to force GPS update
-    console.log("🔄 Forcing GPS update for location request...");
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        function(pos) {
-          console.log("✅ Got forced GPS position:", pos.coords.latitude, pos.coords.longitude);
-          curLat = pos.coords.latitude;
-          curLng = pos.coords.longitude;
-          setGPS(`📍 ${curLat.toFixed(5)}, ${curLng.toFixed(5)}`, "ok");
-          whereAmI(); // Retry location lookup
-        },
-        function(error) {
-          console.log("❌ Forced GPS failed:", error.message);
-          speak("Unable to get GPS location. Please check your device settings.");
-        },
-        {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000}
-      );
-    }
-    return;
-  }
-  
-  console.log(`🏠 Getting location for: ${curLat}, ${curLng}`);
-  
-  var out = document.getElementById("loc-output");
-  out.textContent = "Getting your location...";
-  out.className = "output";
-  clearError();
-  speak("Getting your location.");
-
-  try {
-    var d = await apiPost("/api/locate", {lat:curLat, lng:curLng});
-    if (d.success) {
-      var distKm = (d.dist_to_painavu / 1000).toFixed(1);
-      out.textContent = d.spoken + " — " + distKm + " km from Painavu";
-      speak("You are at " + d.spoken + ". Distance to Painavu: " + distKm + " kilometres.");
-      console.log("✅ Location found:", d.spoken);
-    } else {
-      out.textContent = "Error: " + d.error;
-      out.className = "output error";
-      speak("Location lookup failed: " + d.error);
-      logError("Locate API error: " + d.error);
-    }
-  } catch(e) {
-    out.textContent = "Failed: " + e.message;
-    out.className = "output error";
-    speak("Failed to get location information. " + e.message);
-    logError("Locate fetch error: " + e.message);
-  }
-}
-
-// ── Toggle navigation ────────────────────────────
-function handleToggle() {
-  var row = document.getElementById("nav-toggle");
-  var isActive = row.classList.contains("active");
-  if (isActive) {
-    stopNav();
-  } else {
-    startNav();
-  }
-}
-
-async function startNav() {
-  if (curLat === null) {
-    speak("Cannot navigate. GPS position not available. Set a position on the test map first.");
-    return;
-  }
-
-  var row = document.getElementById("nav-toggle");
-  var status = document.getElementById("toggle-status");
-  var liveStatus = document.getElementById("live-status");
-
-  row.classList.add("active");
-  row.setAttribute("aria-checked", "true");
-  status.textContent = "Calculating route...";
-  clearError();
-  speak("Calculating walking route to Painavu.");
-
-  try {
-    var d = await apiPost("/api/navigate", {lat:curLat, lng:curLng});
-
-    if (!d.success) {
-      speak("Route failed. " + (d.error || ""));
-      logError("Navigate API error: " + d.error);
-      row.classList.remove("active");
-      row.setAttribute("aria-checked", "false");
-      status.textContent = "Route failed: " + d.error;
+    // Anti-repeat: skip if same text was said recently
+    if (priority !== "urgent" && text === this.lastSpoken && (now - this.lastSpokeAt) < this.duplicateWindow) {
+      console.log("[Voice] SKIP duplicate:", text.substring(0, 60));
       return;
     }
 
-    navData = d.nav_steps;
-    document.getElementById("nav-summary").textContent = d.summary;
-    
-    console.log(`✅ Route obtained from ${d.provider}: ${d.total_distance}m via ${d.nav_steps.length} steps`);
+    // Idle announcements only fire if nothing said for 20s+
+    if (priority === "idle" && (now - this.lastSpokeAt) < 20000) {
+      console.log("[Voice] SKIP idle (recent speech):", text.substring(0, 60));
+      return;
+    }
 
-    // Store route geometry for polyline-based step tracking
-    var routeData = {
-      geometry: d.geometry,
-      nav_steps: d.nav_steps,
-      total_distance: d.total_distance
+    // Cancel current speech for urgent, queue for normal
+    if (priority === "urgent") {
+      speechSynthesis.cancel();
+      this.queue = [];
+    }
+
+    this._say(text);
+  },
+
+  _say(text) {
+    if (!('speechSynthesis' in window)) return;
+
+    // Log to voice log panel
+    this._log(text);
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.88;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+
+    const voices = speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith("en"));
+    if (enVoice) utter.voice = enVoice;
+
+    utter.onstart = () => { this.speaking = true; };
+    utter.onend = () => {
+      this.speaking = false;
+      this.lastSpoken = text;
+      this.lastSpokeAt = Date.now();
     };
+    utter.onerror = () => { this.speaking = false; };
 
-    if (mapReady && d.geometry) {
-      if (routeLine) map.removeLayer(routeLine);
-      
-      // Handle both GeoJSON and encoded polyline formats
-      var coords;
-      if (typeof d.geometry === 'string') {
-        // Encoded polyline
-        coords = decodePolyline(d.geometry).map(function(c){return [c[0], c[1]]});
-      } else if (d.geometry.coordinates) {
-        // GeoJSON: convert [lng, lat] to [lat, lng]
-        coords = d.geometry.coordinates.map(function(c){return [c[1], c[0]]});
+    speechSynthesis.speak(utter);
+  },
+
+  stop() {
+    speechSynthesis.cancel();
+    this.speaking = false;
+    this.queue = [];
+  },
+
+  _log(text) {
+    const el = document.getElementById("voice-log");
+    if (!el) return;
+    const now = new Date().toLocaleTimeString();
+    const entry = document.createElement("div");
+    entry.className = "vl-entry";
+    entry.innerHTML = '<span class="vl-time">' + now + '</span>' + text;
+    el.prepend(entry);
+    // Keep last 20 entries
+    while (el.children.length > 20) el.removeChild(el.lastChild);
+  }
+};
+
+// Load voices
+if ('speechSynthesis' in window) {
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+}
+
+// ── Live Navigation Engine ───────────────────────
+const Nav = {
+  active: false,
+  polyline: null,           // [[lat,lng], ...] decoded route
+  lastPos: null,            // {lat, lng}
+  totalWalked: 0,           // metres walked total
+  segmentWalked: 0,         // metres walked on current segment (step)
+  segmentDistance: 0,        // total metres for current segment
+  segmentStepCount: 0,       // total steps for current segment
+  stepsOnSegment: 0,         // steps walked on current segment
+  stepLength: 0.65,
+
+  // Announcement state — tracks WHAT we've already said so we don't repeat
+  announced: {
+    postTurn: false,         // "You turned left, and now walk 45 steps..."
+    reminder10: false,       // "In about 10 steps, turn right"
+    reminder3: false,        // "Turn right in 3 steps"
+    periodicAt: 0,           // last periodic announce at this step count
+    offRouteAt: 0,           // last off-route warn at ms
+    rerouteAt: 0,            // last reroute request at ms
+    arrivalWarned: false
+  },
+
+  wakeLock: null,
+
+  // --- Core lifecycle ---
+  start(routeData) {
+    this.active = true;
+    this.lastPos = {lat: curLat, lng: curLng};
+    this.totalWalked = 0;
+    this.segmentWalked = 0;
+    this.stepsOnSegment = 0;
+    this.resetAnnouncementFlags();
+
+    // Decode polyline
+    if (routeData.geometry) {
+      if (typeof routeData.geometry === 'string') {
+        this.polyline = decodePolyline(routeData.geometry);
+      } else if (routeData.geometry.coordinates) {
+        this.polyline = routeData.geometry.coordinates.map(c => [c[1], c[0]]);
       }
-      
-      if (coords) {
-        routeLine = L.polyline(coords, {color:"#e0a800",weight:4,opacity:0.8}).addTo(map);
-        map.fitBounds(routeLine.getBounds(), {padding:[30,30]});
+      console.log("✅ Route polyline:", (this.polyline||[]).length, "points");
+    }
+
+    // Init current segment info
+    if (curStep >= 0 && curStep < navData.length) {
+      this.segmentDistance = navData[curStep].distance || 0;
+      this.segmentStepCount = Math.round(this.segmentDistance / this.stepLength);
+    }
+
+    // Screen wake lock
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(wl => {
+        this.wakeLock = wl;
+        console.log("Screen wake lock ON");
+      }).catch(() => {});
+    }
+
+    // Start GPS with high accuracy
+    startGPSTracking();
+
+    // Haptic feedback: nav started
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+
+    // Start the announcement loop
+    this._loopId = setInterval(() => this._tick(), 2000);
+  },
+
+  stop() {
+    this.active = false;
+    if (this._loopId) { clearInterval(this._loopId); this._loopId = null; }
+    if (this.wakeLock) { this.wakeLock.release(); this.wakeLock = null; }
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  },
+
+  resetAnnouncementFlags() {
+    this.announced = {
+      postTurn: false,
+      reminder10: false,
+      reminder3: false,
+      periodicAt: 0,
+      offRouteAt: 0,
+      rerouteAt: 0,
+      arrivalWarned: false
+    };
+  },
+
+  // --- Called on every GPS update ---
+  onGPS(lat, lng, accuracy) {
+    if (!this.active || !this.lastPos) return;
+
+    const moved = haversine(this.lastPos.lat, this.lastPos.lng, lat, lng);
+
+    // Noise filter: ignore tiny movements
+    if (moved < 2) return;
+
+    // Update walked distances
+    this.totalWalked += moved;
+    this.segmentWalked += moved;
+    this.stepsOnSegment = Math.round(this.segmentWalked / this.stepLength);
+    this.lastPos = {lat, lng};
+
+    // Check off-route
+    this._checkOffRoute(lat, lng);
+
+    // Check if we've reached the next maneuver point
+    this._checkStepCompletion(lat, lng);
+  },
+
+  // --- 2-second tick: announcement logic ---
+  _tick() {
+    if (!this.active || curStep < 0 || curStep >= navData.length) return;
+
+    const step = navData[curStep];
+    const remaining = Math.max(0, this.segmentDistance - this.segmentWalked);
+    const remainingSteps = Math.round(remaining / this.stepLength);
+    const nextDir = step.next_turn_direction || "forward";
+    const nextType = step.next_turn_type || "";
+    const isLastStep = (curStep >= navData.length - 1);
+
+    // ── 1. POST-TURN announcement (once, right after advancing) ──
+    if (!this.announced.postTurn) {
+      this.announced.postTurn = true;
+      this._announcePostTurn(step, remainingSteps, nextDir, nextType, isLastStep);
+      return; // Don't stack announcements
+    }
+
+    // If this is the last step (arrive), check arrival
+    if (isLastStep || step.type === "arrive") {
+      if (!this.announced.arrivalWarned && remaining < 20) {
+        this.announced.arrivalWarned = true;
+        Voice.speak("You are very close to Painavu, and your destination is just ahead.", "urgent");
+        if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+      }
+      return;
+    }
+
+    // ── 2. PRE-TURN reminder at ~10 steps ──
+    if (!this.announced.reminder10 && remainingSteps <= 12 && remainingSteps > 5) {
+      this.announced.reminder10 = true;
+      const turnWord = this._turnPhrase(nextDir, nextType);
+      Voice.speak("Heads up, in about 10 steps, " + turnWord + ".", "normal");
+      if (navigator.vibrate) navigator.vibrate([100, 80, 100]);
+      return;
+    }
+
+    // ── 3. URGENT reminder at ~3 steps ──
+    if (!this.announced.reminder3 && remainingSteps <= 4 && remainingSteps >= 1) {
+      this.announced.reminder3 = true;
+      const turnWord = this._turnPhrase(nextDir, nextType);
+      Voice.speak(turnWord + ", now.", "urgent");
+      if (navigator.vibrate) navigator.vibrate([200, 50, 200, 50, 200]);
+      return;
+    }
+
+    // ── 4. PERIODIC update on long straights (every ~30 steps, idle priority) ──
+    if (this.segmentStepCount > 40 && remainingSteps > 15) {
+      const periodicInterval = 30; // announce every 30 steps
+      const currentBucket = Math.floor(this.stepsOnSegment / periodicInterval);
+      if (currentBucket > this.announced.periodicAt && currentBucket > 0) {
+        this.announced.periodicAt = currentBucket;
+        const turnWord = this._turnPhrase(nextDir, nextType);
+        Voice.speak("Continue straight, and " + remainingSteps + " steps until " + turnWord + ".", "idle");
       }
     }
 
-    buildStepList();
-    curStep = 0;
-    navigating = true;
-    
-    // Start live navigation with route geometry
-    initLiveNavigation(routeData);
-    
-    status.textContent = "Live navigation active";
-    liveStatus.style.display = "block";
-    
-    speak(d.summary + " Live navigation started. You will receive automatic directions as you walk.");
-    
-    // Start with first instruction after summary
-    setTimeout(function(){
-      if (liveNavigation.active && navData.length > 0) {
-        announceCurrentStep();
+    // Update UI
+    this._updateUI(step, remainingSteps);
+  },
+
+  // Build a natural phrase like "turn left" or "keep right at the fork"
+  _turnPhrase(direction, type) {
+    if (!type || type === "arrive") return "you will arrive at your destination";
+    if (type === "fork") {
+      if (direction.includes("left")) return "keep left at the fork";
+      if (direction.includes("right")) return "keep right at the fork";
+      return "continue at the fork";
+    }
+    if (type === "roundabout" || type === "rotary") return "enter the roundabout";
+    if (type === "depart") return "start walking";
+    if (direction === "forward") return "continue straight";
+    return "turn " + direction;
+  },
+
+  // Announcement right after completing a step (turning)
+  _announcePostTurn(step, remainingSteps, nextDir, nextType, isLastStep) {
+    const type = step.type;
+    const dir = step.turn_direction || "forward";
+    const road = step.road || "";
+
+    let phrase = "";
+
+    if (type === "depart") {
+      // First step
+      if (isLastStep) {
+        phrase = "Start walking forward, and you will arrive at Painavu in about " + remainingSteps + " steps.";
+      } else {
+        const nextTurn = this._turnPhrase(nextDir, nextType);
+        phrase = "Start walking forward for " + remainingSteps + " steps";
+        if (road) phrase += " along " + road;
+        phrase += ", and then " + nextTurn + ".";
       }
-    }, 8000);
+    } else if (type === "arrive") {
+      phrase = "Congratulations! You have arrived at Painavu.";
+      Voice.speak(phrase, "urgent");
+      if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+      setTimeout(() => stopNav(), 5000);
+      return;
+    } else {
+      // A turn / fork / bear — describe what just happened and what's next
+      let turnDesc;
+      if (type === "fork") {
+        turnDesc = dir.includes("left") ? "You kept left at the fork" : (dir.includes("right") ? "You kept right at the fork" : "You continued at the fork");
+      } else if (dir === "forward") {
+        turnDesc = "You are continuing straight";
+      } else {
+        turnDesc = "You turned " + dir;
+      }
 
-  } catch(e) {
-    speak("Failed to get route. " + e.message);
-    logError("Navigate fetch error: " + e.message);
-    row.classList.remove("active");
-    row.setAttribute("aria-checked", "false");
-    status.textContent = "Error: " + e.message;
-  }
-}
+      if (isLastStep) {
+        phrase = turnDesc + ", and now walk " + remainingSteps + " steps to arrive at Painavu.";
+      } else {
+        const nextTurn = this._turnPhrase(nextDir, nextType);
+        phrase = turnDesc + ", and now walk " + remainingSteps + " steps";
+        if (road) phrase += " on " + road;
+        phrase += ", and then " + nextTurn + ".";
+      }
+    }
 
-function stopNav() {
-  navigating = false;
-  curStep = -1;
-  navData = [];
-  
-  // Stop live navigation
-  stopLiveNavigation();
-  
-  var row = document.getElementById("nav-toggle");
-  row.classList.remove("active");
-  row.setAttribute("aria-checked", "false");
-  document.getElementById("toggle-status").textContent = "Tap to start live navigation";
-  document.getElementById("nav-panel").classList.remove("visible");
-  document.getElementById("live-status").style.display = "none";
-  if (synth) synth.cancel();
-  speak("Navigation stopped.");
-}
+    Voice.speak(phrase, "urgent");
+  },
 
-// ── Step list ────────────────────────────────────
-function buildStepList() {
-  var box = document.getElementById("step-list");
-  box.innerHTML = "";
-  navData.forEach(function(s, i) {
-    var div = document.createElement("div");
-    div.className = "step-item";
-    div.id = "si-" + i;
-    div.innerHTML =
-      '<div class="snum">Step ' + s.n + '</div>' +
-      '<div class="sinstr">' + s.action + '</div>' +
-      '<div class="smeta">' + (s.distance ? Math.round(s.distance) : 0) + 'm — approximately ' + (s.step_count || 0) + ' steps</div>';
-    box.appendChild(div);
-  });
-}
+  // Check if user has reached or passed the next maneuver
+  _checkStepCompletion(lat, lng) {
+    if (curStep < 0 || curStep >= navData.length) return;
 
-function showStep() {
-  if (curStep < 0 || curStep >= navData.length) return;
-  var s = navData[curStep];
-  document.getElementById("nav-current").textContent =
-    "Step " + s.n + " of " + navData.length + ": " + s.action;
-  var items = document.querySelectorAll(".step-item");
-  for (var i = 0; i < items.length; i++) {
-    items[i].classList.toggle("active", i === curStep);
-  }
-  var el = document.getElementById("si-" + curStep);
-  if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
-}
+    const step = navData[curStep];
+    const remaining = Math.max(0, this.segmentDistance - this.segmentWalked);
 
-// Navigation control functions (disabled for live navigation)
-function nextStep() {
-  if (!navigating || liveNavigation.active) return;
-  if (curStep < navData.length - 1) {
+    // Method 1: walked the full distance for this segment
+    if (remaining <= 3 && this.segmentWalked > 5) {
+      console.log("[Nav] Segment distance completed — advancing");
+      this._advance();
+      return;
+    }
+
+    // Method 2: proximity to next step's maneuver point
+    if (curStep + 1 < navData.length) {
+      const next = navData[curStep + 1];
+      if (next.lat && next.lng) {
+        const distToNext = haversine(lat, lng, next.lat, next.lng);
+        if (distToNext < 12) {
+          console.log("[Nav] Close to next maneuver point (" + distToNext.toFixed(1) + "m) — advancing");
+          this._advance();
+          return;
+        }
+      }
+    }
+
+    // Method 3: polyline segment tracking
+    if (this.polyline && this.polyline.length > 2) {
+      const nextStep = navData[curStep + 1];
+      if (nextStep && nextStep.lat && nextStep.lng) {
+        const closestUser = findClosestPointOnPolyline(lat, lng, this.polyline);
+        const closestNext = findClosestPointOnPolyline(nextStep.lat, nextStep.lng, this.polyline);
+        if (closestUser.segmentIndex >= closestNext.segmentIndex && closestNext.segmentIndex > 0) {
+          console.log("[Nav] Passed next maneuver on polyline — advancing");
+          this._advance();
+          return;
+        }
+      }
+    }
+  },
+
+  _advance() {
+    if (curStep >= navData.length - 1) {
+      // Final arrival
+      Voice.speak("Congratulations! You have arrived at Painavu, and your journey is complete.", "urgent");
+      if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+      setTimeout(() => stopNav(), 5000);
+      return;
+    }
+
     curStep++;
-    showStep();
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
-  } else {
-    speak("That was the last step. You should be at Painavu.");
+    const step = navData[curStep];
+    this.segmentWalked = 0;
+    this.stepsOnSegment = 0;
+    this.segmentDistance = step.distance || 0;
+    this.segmentStepCount = Math.round(this.segmentDistance / this.stepLength);
+    this.resetAnnouncementFlags();
+
+    // Haptic for step change
+    if (navigator.vibrate) navigator.vibrate([150, 50, 150]);
+
+    console.log("[Nav] Advanced to step", curStep + 1, "of", navData.length);
+
+    // Update step list UI
+    highlightStep(curStep);
+  },
+
+  // Check if user wandered off route
+  _checkOffRoute(lat, lng) {
+    if (!this.polyline || this.polyline.length < 2) return;
+
+    const closest = findClosestPointOnPolyline(lat, lng, this.polyline);
+    const offDist = closest.distance;
+    const now = Date.now();
+
+    if (offDist > 30 && offDist <= 60) {
+      // Mild off-route: warn every 15s
+      if ((now - this.announced.offRouteAt) > 15000) {
+        this.announced.offRouteAt = now;
+        Voice.speak("You seem to be drifting off the route. Try to move back towards the path.", "normal");
+        if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+      }
+    } else if (offDist > 60) {
+      // Severe off-route: reroute every 30s
+      if ((now - this.announced.rerouteAt) > 30000) {
+        this.announced.rerouteAt = now;
+        Voice.speak("You are off the route. Recalculating a new route from your current position.", "urgent");
+        if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400]);
+        this._reroute(lat, lng);
+      }
+    }
+  },
+
+  async _reroute(lat, lng) {
+    console.log("[Nav] Requesting reroute from", lat, lng);
+    try {
+      const d = await apiPost("/api/reroute", {lat, lng});
+      if (!d.success) {
+        Voice.speak("Could not find a new route. Please try to retrace your steps.", "urgent");
+        return;
+      }
+
+      // Replace nav data
+      navData = d.nav_steps;
+      curStep = 0;
+
+      // Update polyline
+      if (d.geometry) {
+        if (typeof d.geometry === 'string') {
+          this.polyline = decodePolyline(d.geometry);
+        } else if (d.geometry.coordinates) {
+          this.polyline = d.geometry.coordinates.map(c => [c[1], c[0]]);
+        }
+
+        // Update map route
+        if (mapReady && routeLine) map.removeLayer(routeLine);
+        if (mapReady && this.polyline) {
+          routeLine = L.polyline(this.polyline, {color:"#e0a800",weight:4,opacity:0.8}).addTo(map);
+        }
+      }
+
+      buildStepList();
+      this.segmentWalked = 0;
+      this.stepsOnSegment = 0;
+      this.segmentDistance = navData[0].distance || 0;
+      this.segmentStepCount = Math.round(this.segmentDistance / this.stepLength);
+      this.resetAnnouncementFlags();
+
+      const totalSteps = d.total_steps || 0;
+      Voice.speak("New route found. There are " + navData.length + " steps, and about " + totalSteps + " walking steps to Painavu.", "urgent");
+
+    } catch(e) {
+      console.error("[Nav] Reroute failed:", e);
+      Voice.speak("Reroute failed. Please continue in the general direction, and try again shortly.", "urgent");
+    }
+  },
+
+  _updateUI(step, remainingSteps) {
+    const liveText = document.getElementById("live-text");
+    const progressInfo = document.getElementById("progress-info");
+    if (!liveText || !progressInfo) return;
+
+    const nextDir = step.next_turn_direction || "forward";
+    const nextType = step.next_turn_type || "";
+    const turnPhrase = this._turnPhrase(nextDir, nextType);
+
+    liveText.textContent = "Step " + (curStep + 1) + " of " + navData.length + ": " + step.action;
+    if (remainingSteps > 0) {
+      progressInfo.textContent = remainingSteps + " steps until " + turnPhrase +
+        " | Total walked: " + Math.round(this.totalWalked) + "m";
+    } else {
+      progressInfo.textContent = "Approaching next turn...";
+    }
   }
+};
+
+
+// ── Utility functions ────────────────────────────
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLon = (lon2 - lon1) * toR;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*toR)*Math.cos(lat2*toR)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function prevStep() {
-  if (!navigating || liveNavigation.active) return;
-  if (curStep > 0) {
-    curStep--;
-    showStep();
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
-  } else {
-    speak("This is the first step.");
-  }
-}
-
-function repeatStep() {
-  if (!navigating || curStep < 0) return;
-  if (liveNavigation.active) {
-    // In live navigation, repeat current instruction
-    announceCurrentStep();
-  } else {
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
-  }
-}
-
-function goToStep(i) {
-  if (!navigating || liveNavigation.active) return;
-  curStep = i;
-  showStep();
-  speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
-}
-
-// ── Polyline Decoder (Google's polyline algorithm) ────────
 function decodePolyline(encoded) {
-  var inv = 1.0 / 1e5;
-  var decoded = [];
-  var previous = [0, 0];
-  var i = 0;
-  
+  const inv = 1e-5;
+  const decoded = [];
+  let previous = [0, 0];
+  let i = 0;
   while (i < encoded.length) {
-    var ll = [0, 0];
-    for (var j = 0; j < 2; j++) {
-      var shift = 0;
-      var result = 0;
-      var byte = 0;
+    const ll = [0, 0];
+    for (let j = 0; j < 2; j++) {
+      let shift = 0, result = 0, byte;
       do {
         byte = encoded.charCodeAt(i++) - 63;
         result |= (byte & 0x1f) << shift;
@@ -1219,414 +708,432 @@ function decodePolyline(encoded) {
   return decoded;
 }
 
-// Find closest point on polyline to current position
 function findClosestPointOnPolyline(lat, lng, polyline) {
-  var closest = null;
-  var minDist = Infinity;
-  var closestSegmentIndex = -1;
-  
-  for (var i = 0; i < polyline.length - 1; i++) {
-    var p1 = polyline[i];
-    var p2 = polyline[i + 1];
-    var closest_on_segment = projectPointOnSegment(lat, lng, p1[0], p1[1], p2[0], p2[1]);
-    
-    if (closest_on_segment.distance < minDist) {
-      minDist = closest_on_segment.distance;
-      closest = closest_on_segment.point;
+  let closest = null, minDist = Infinity, closestSegmentIndex = -1;
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const p1 = polyline[i], p2 = polyline[i+1];
+    const proj = projectPointOnSegment(lat, lng, p1[0], p1[1], p2[0], p2[1]);
+    if (proj.distance < minDist) {
+      minDist = proj.distance;
+      closest = proj.point;
       closestSegmentIndex = i;
     }
   }
-  
   return {point: closest, distance: minDist, segmentIndex: closestSegmentIndex};
 }
 
-// Project point onto line segment
 function projectPointOnSegment(px, py, x1, y1, x2, y2) {
-  var dx = x2 - x1;
-  var dy = y2 - y1;
-  var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
-  var projx = x1 + t * dx;
-  var projy = y1 + t * dy;
-  var dist = haversine(py, px, projy, projx);
-  return {point: [projy, projx], distance: dist, t: t};
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx*dx + dy*dy;
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px-x1)*dx + (py-y1)*dy) / lenSq));
+  const projx = x1 + t*dx, projy = y1 + t*dy;
+  const dist = haversine(px, py, projx, projy);
+  return {point: [projx, projy], distance: dist, t};
 }
 
-// Calculate distance along polyline from segment to target segment
-function distanceAlongPolyline(polyline, fromSegmentIndex, toSegmentIndex) {
-  var distance = 0;
-  
-  // Start from the segment after fromSegmentIndex
-  for (var i = fromSegmentIndex + 1; i <= toSegmentIndex && i < polyline.length; i++) {
-    distance += haversine(polyline[i-1][0], polyline[i-1][1], polyline[i][0], polyline[i][1]);
-  }
-  
-  return distance;
+// ── Error / logging ──────────────────────────────
+function logError(msg) {
+  const el = document.getElementById("error-log");
+  if (!el) return;
+  const ts = new Date().toLocaleTimeString();
+  console.error("[" + ts + "] " + msg);
+  el.style.display = "block";
+  el.textContent = "[" + ts + "] " + msg + "\n" + (el.textContent || "");
+  const lines = el.textContent.split("\n").slice(0, 10);
+  el.textContent = lines.join("\n");
 }
 
-// ── Live Navigation System ──────────────────────
-function initLiveNavigation(routeData) {
-  liveNavigation.active = true;
-  liveNavigation.lastPosition = {lat: curLat, lng: curLng};
-  liveNavigation.stepDistance = 0;
-  liveNavigation.totalSteps = 0;
-  liveNavigation.currentInstruction = navData[0];
-  liveNavigation.lastAnnouncement = Date.now();
-  liveNavigation.courseDeviation = 0;
-  
-  // Decode and store route polyline
-  if (routeData.geometry && routeData.geometry.coordinates) {
-    // GeoJSON format: convert [lng, lat] to [lat, lng]
-    liveNavigation.polyline = routeData.geometry.coordinates.map(c => [c[1], c[0]]);
-    console.log("✅ Route polyline decoded:", liveNavigation.polyline.length, "points");
-  } else if (routeData.geometry) {
-    // Encoded polyline string
-    liveNavigation.polyline = decodePolyline(routeData.geometry);
-    console.log("✅ Route polyline decoded:", liveNavigation.polyline.length, "points");
-  }
-  
-  // Restart GPS with live navigation settings for better accuracy
-  startGPSTracking();
-  
-  // Keep screen awake during navigation if possible
-  if ('wakeLock' in navigator) {
-    navigator.wakeLock.request('screen').then(wakeLock => {
-      console.log('Screen wake lock activated');
-      // Store wake lock to release later
-      liveNavigation.wakeLock = wakeLock;
-    }).catch(err => {
-      console.log('Wake lock failed:', err);
-    });
-  }
-  
-  calculateNextTurn();
-  startLiveTracking();
-  updateLiveStatus();
-  
-  // Initial vibration to indicate navigation start
-  if (navigator.vibrate) {
-    navigator.vibrate([100, 50, 100, 50, 200]);
-  }
+function clearError() {
+  const el = document.getElementById("error-log");
+  if (el) { el.textContent = ""; el.style.display = "none"; }
 }
 
-function stopLiveNavigation() {
-  liveNavigation.active = false;
-  if (liveNavigation.trackingInterval) {
-    clearInterval(liveNavigation.trackingInterval);
-    liveNavigation.trackingInterval = null;
-  }
-  if (liveNavigation.stepUpdateInterval) {
-    clearInterval(liveNavigation.stepUpdateInterval);
-    liveNavigation.stepUpdateInterval = null;
-  }
-  
-  // Release wake lock
-  if (liveNavigation.wakeLock) {
-    liveNavigation.wakeLock.release();
-    liveNavigation.wakeLock = null;
-    console.log('Screen wake lock released');
-  }
-  
-  // Restart GPS with normal settings
-  startGPSTracking();
-  
-  // Vibration to indicate navigation stopped
-  if (navigator.vibrate) {
-    navigator.vibrate([200, 100, 200]);
-  }
-}
-
-function startLiveTracking() {
-  // Update live status every 2 seconds
-  liveNavigation.trackingInterval = setInterval(function() {
-    if (liveNavigation.active) {
-      updateLiveStatus();
-      checkForAnnouncements();
+// ── API helper ───────────────────────────────────
+async function apiPost(url, body, retries) {
+  retries = retries || 2;
+  let lastErr;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const r = await fetch(API_BASE + url, {
+        method: "POST",
+        headers: {"Content-Type":"application/json","Accept":"application/json"},
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch(e) {
+      lastErr = e;
+      if (attempt < retries - 1) await new Promise(ok => setTimeout(ok, 1000));
     }
-  }, 2000);
-  
-  // Update step progress every 5 seconds
-  liveNavigation.stepUpdateInterval = setInterval(function() {
-    if (liveNavigation.active) {
-      announceProgress();
-    }
-  }, 5000);
+  }
+  throw lastErr;
 }
 
-function updateLiveNavigation(newLat, newLng, accuracy) {
-  if (!liveNavigation.active || !liveNavigation.lastPosition) return;
-  
-  // Calculate distance moved
-  var moved = haversine(
-    liveNavigation.lastPosition.lat, liveNavigation.lastPosition.lng,
-    newLat, newLng
-  );
-  
-  // Only update if movement is above noise threshold (reduces GPS noise)
-  if (moved >= liveNavigation.minMovement) {
-    // Update step counters
-    liveNavigation.stepDistance += moved;
-    var newSteps = Math.floor(liveNavigation.stepDistance / liveNavigation.stepLength);
-    if (newSteps > liveNavigation.totalSteps) {
-      liveNavigation.totalSteps = newSteps;
-      
-      // Provide step feedback every 10 steps
-      if (liveNavigation.totalSteps % 10 === 0 && navigator.vibrate) {
-        navigator.vibrate(50); // Subtle vibration every 10 steps
-      }
+// ── Health check ─────────────────────────────────
+async function checkHealth() {
+  const el = document.getElementById("server-status");
+  try {
+    await fetch(API_BASE + "/api/ping");
+    const r = await fetch(API_BASE + "/api/health");
+    const d = await r.json();
+    if (d.ok) {
+      el.textContent = "Server connected, and all APIs reachable.";
+      el.className = "ok";
+    } else {
+      el.textContent = "Server running, but API issues: " + (d.errors||[]).join("; ");
+      el.className = "fail";
     }
-    
-    // Check if reached current step destination using polyline logic
-    checkStepCompletion(newLat, newLng);
-    
-    // Update position with accuracy
-    liveNavigation.lastPosition = {lat: newLat, lng: newLng, accuracy: accuracy};
-    
-    console.log(`Live nav update: moved ${moved.toFixed(1)}m, total steps: ${liveNavigation.totalSteps}, accuracy: ${accuracy}m`);
-  } else {
-    console.log(`Movement too small: ${moved.toFixed(1)}m < ${liveNavigation.minMovement}m threshold - ignoring GPS noise`);
+  } catch(e) {
+    el.textContent = "Cannot connect to server.";
+    el.className = "fail";
+    logError("Health check failed: " + e.message);
   }
 }
 
-// Debug function for GPS testing
-function debugGPS() {
-  console.log("=== GPS Debug Info ===");
-  console.log("GPS initialized:", gpsInitialized);
-  console.log("Current position:", curLat, curLng);
-  console.log("Last good position:", liveNavigation.lastGoodPosition);
-  console.log("GPS watch ID:", watchId);
-  console.log("Testing direct GPS access...");
-  
+// ── GPS ──────────────────────────────────────────
+function enableGPS() {
+  if (!navigator.geolocation) {
+    setGPS("GPS not supported on this device", "err");
+    Voice.speak("GPS is not supported on this device.", "urgent");
+    return;
+  }
+  if (gpsInitialized) {
+    document.getElementById('btn-enable-gps').style.display = 'none';
+    document.getElementById('btn-locate').style.display = 'block';
+    return;
+  }
+  setGPS("Requesting location permission...", "wait");
+
   navigator.geolocation.getCurrentPosition(
     pos => {
-      console.log("✅ Direct GPS test SUCCESS:", {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude, 
-        accuracy: pos.coords.accuracy,
-        timestamp: new Date(pos.timestamp)
-      });
+      curLat = pos.coords.latitude;
+      curLng = pos.coords.longitude;
+      setGPS("📍 " + curLat.toFixed(5) + ", " + curLng.toFixed(5) + " (±" + Math.round(pos.coords.accuracy||999) + "m — refining…)", "ok");
+      gpsInitialized = true;
+      startGPSTracking();
+      document.getElementById('btn-enable-gps').style.display = 'none';
+      document.getElementById('btn-locate').style.display = 'block';
+      Voice.speak("Location found, and GPS is refining accuracy.", "normal");
     },
-    err => {
-      console.error("❌ Direct GPS test FAILED:", err.code, err.message);
+    () => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          curLat = pos.coords.latitude;
+          curLng = pos.coords.longitude;
+          gpsInitialized = true;
+          startGPSTracking();
+          document.getElementById('btn-enable-gps').style.display = 'none';
+          document.getElementById('btn-locate').style.display = 'block';
+          Voice.speak("GPS enabled successfully.", "normal");
+        },
+        err2 => {
+          setGPS("Location permission required", "err");
+          Voice.speak("Location access is required. Please allow location access, and try again.", "urgent");
+        },
+        {enableHighAccuracy: true, timeout: 30000, maximumAge: 60000}
+      );
     },
-    {enableHighAccuracy: true, timeout: 5000, maximumAge: 0}
+    {enableHighAccuracy: false, timeout: 10000, maximumAge: 60000}
   );
 }
 
-function checkStepCompletion(lat, lng) {
-  if (curStep < 0 || curStep >= navData.length || !liveNavigation.polyline) return;
-  
-  var currentStep = navData[curStep];
-  if (!currentStep) return;
-  
-  // Find closest point on the overall route polyline
-  var closestOnRoute = findClosestPointOnPolyline(lat, lng, liveNavigation.polyline);
-  
-  if (!closestOnRoute.point) return;
-  
-  console.log(`Closest point on route: segment ${closestOnRoute.segmentIndex}, distance from route: ${closestOnRoute.distance.toFixed(1)}m`);
-  
-  // Alert user if they're too far off the route
-  if (closestOnRoute.distance > 50) {
-    var timeSinceLastAlert = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
-    if (timeSinceLastAlert > 30) {
-      speak("Alert: You may be off the route. Check your position and try " + currentStep.action.toLowerCase());
-      liveNavigation.lastAnnouncement = Date.now();
+function startGPSTracking() {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+
+  watchId = navigator.geolocation.watchPosition(
+    pos => {
+      gpsRetryCount = 0;
+      const newLat = pos.coords.latitude;
+      const newLng = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy || 999;
+
+      if (accuracy <= 100) {
+        curLat = newLat;
+        curLng = newLng;
+
+        // Feed to Nav engine
+        if (Nav.active) {
+          Nav.onGPS(newLat, newLng, accuracy);
+        }
+      }
+
+      let q = "📍";
+      if (accuracy <= 5) q = "🎯";
+      else if (accuracy <= 15) q = "🟢";
+      else if (accuracy <= 30) q = "🟡";
+      else q = "🔴";
+      setGPS(q + " " + curLat.toFixed(5) + ", " + curLng.toFixed(5) + " (±" + Math.round(accuracy) + "m)", "ok");
+      updateMapPos();
+    },
+    err => {
+      handleGPSError(err);
+    },
+    {enableHighAccuracy: true, maximumAge: 10000, timeout: 30000}
+  );
+
+  // Quick seed
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      if (curLat === null) {
+        curLat = pos.coords.latitude;
+        curLng = pos.coords.longitude;
+        setGPS("📍 " + curLat.toFixed(5) + ", " + curLng.toFixed(5) + " (refining…)", "ok");
+      }
+    },
+    () => {},
+    {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000}
+  );
+}
+
+function handleGPSError(err) {
+  gpsRetryCount++;
+  let msg = "GPS error";
+  if (err.code === 1) {
+    msg = "Location access denied";
+    Voice.speak("Location access denied. Please allow location, and refresh.", "urgent");
+    setGPS("📍❌ " + msg, "err");
+    return;
+  } else if (err.code === 2) {
+    msg = "GPS signal unavailable";
+  } else if (err.code === 3) {
+    msg = "GPS timeout";
+  }
+  setGPS("📍⚠️ " + msg + " — retrying...", "err");
+
+  if (gpsRetryCount <= 2) Voice.speak(msg + ". Retrying.", "normal");
+  if (gpsRetryCount < MAX_GPS_RETRIES) {
+    setTimeout(() => startGPSTracking(), Math.min(2000 * gpsRetryCount, 10000));
+  } else {
+    setGPS("📍💀 GPS failed — use test map", "err");
+    Voice.speak("GPS has failed. You can test using the map.", "urgent");
+  }
+}
+
+function setGPS(msg, type) {
+  document.getElementById("gps-dot").className = "gps-indicator " + type;
+  document.getElementById("gps-text").textContent = msg;
+}
+
+// ── Where Am I ───────────────────────────────────
+async function whereAmI() {
+  if (curLat === null) {
+    Voice.speak("GPS position not available. Please enable GPS first.", "urgent");
+    return;
+  }
+  const out = document.getElementById("loc-output");
+  out.textContent = "Getting your location...";
+  out.className = "output";
+  clearError();
+  Voice.speak("Getting your location.", "normal");
+
+  try {
+    const d = await apiPost("/api/locate", {lat: curLat, lng: curLng});
+    if (d.success) {
+      const distKm = (d.dist_to_painavu / 1000).toFixed(1);
+      out.textContent = d.spoken + " — " + distKm + " km from Painavu";
+      Voice.speak("You are at " + d.spoken + ", and the distance to Painavu is " + distKm + " kilometres.", "normal");
+    } else {
+      out.textContent = "Error: " + d.error;
+      out.className = "output error";
+      Voice.speak("Location lookup failed.", "normal");
     }
+  } catch(e) {
+    out.textContent = "Failed: " + e.message;
+    out.className = "output error";
+    Voice.speak("Failed to get location.", "normal");
+    logError("Locate error: " + e.message);
   }
-  
-  // Now find the maneuver point for current step
-  if (!currentStep.lat || !currentStep.lng) {
-    console.log("Current step has no lat/lng, skipping completion check");
+}
+
+// ── Navigation toggle ────────────────────────────
+function handleToggle() {
+  const row = document.getElementById("nav-toggle");
+  if (row.classList.contains("active")) stopNav();
+  else startNav();
+}
+
+async function startNav() {
+  if (curLat === null) {
+    Voice.speak("Cannot navigate. GPS position not available. Set a position on the test map first.", "urgent");
     return;
   }
-  
-  // Find the polyline segment closest to the current step's maneuver
-  var stepOnRoute = findClosestPointOnPolyline(currentStep.lat, currentStep.lng, liveNavigation.polyline);
-  var currentSegmentIndex = stepOnRoute.segmentIndex;
-  
-  console.log(`Current step maneuver at segment ${currentSegmentIndex}`);
-  
-  // If the closest point on route is beyond the current step's maneuver, advance
-  if (closestOnRoute.segmentIndex >= currentSegmentIndex) {
-    console.log(`User has passed step maneuver: current segment ${closestOnRoute.segmentIndex} >= maneuver segment ${currentSegmentIndex}`);
-    advanceToNextStep();
-    return;
-  }
-  
-  // Alternative: distance along route to next maneuver
-  var nextStep = navData[curStep + 1];
-  if (nextStep && nextStep.lat && nextStep.lng) {
-    var nextStepOnRoute = findClosestPointOnPolyline(nextStep.lat, nextStep.lng, liveNavigation.polyline);
-    var distanceToNext = distanceAlongPolyline(liveNavigation.polyline, closestOnRoute.segmentIndex, nextStepOnRoute.segmentIndex);
-    var stepsToNext = Math.round(distanceToNext / liveNavigation.stepLength);
-    
-    console.log(`Distance along route to next maneuver: ${distanceToNext.toFixed(1)}m (${stepsToNext} steps)`);
-    
-    // Advance when very close to next maneuver
-    if (distanceToNext < 15) {
-      console.log("Close to next maneuver, advancing...");
-      advanceToNextStep();
+
+  const row = document.getElementById("nav-toggle");
+  const status = document.getElementById("toggle-status");
+  const liveStatus = document.getElementById("live-status");
+
+  row.classList.add("active");
+  row.setAttribute("aria-checked", "true");
+  status.textContent = "Calculating route...";
+  clearError();
+  Voice.speak("Calculating walking route to Painavu.", "normal");
+
+  try {
+    const d = await apiPost("/api/navigate", {lat: curLat, lng: curLng});
+
+    if (!d.success) {
+      Voice.speak("Route failed. " + (d.error || ""), "urgent");
+      row.classList.remove("active");
+      row.setAttribute("aria-checked", "false");
+      status.textContent = "Route failed: " + d.error;
       return;
     }
-  }
-}
 
-function advanceToNextStep() {
-  if (curStep >= navData.length - 1) {
-    // Reached destination
-    speak("Congratulations! You have arrived at Painavu!");
-    stopNav();
-    return;
-  }
-  
-  curStep++;
-  liveNavigation.currentInstruction = navData[curStep];
-  liveNavigation.stepDistance = 0; // Reset step counter for new segment
-  calculateNextTurn();
-  announceCurrentStep();
-  updateLiveStatus();
-}
+    navData = d.nav_steps;
+    document.getElementById("nav-summary").textContent = d.summary;
 
-function calculateNextTurn() {
-  if (curStep < 0 || curStep >= navData.length) return;
-  
-  var current = navData[curStep];
-  liveNavigation.nextTurnDistance = current.distance || 0;
-  liveNavigation.nextTurnDirection = current.action || "continue";
-}
-
-function announceCurrentStep() {
-  if (!liveNavigation.active || curStep < 0 || curStep >= navData.length) return;
-  
-  var step = navData[curStep];
-  var announcement = step.action;
-  
-  if (step.distance && step.distance > 10) {
-    var stepCount = Math.round(step.distance / liveNavigation.stepLength);
-    announcement += " in " + stepCount + " steps";
-  }
-  
-  speak(announcement);
-  liveNavigation.lastAnnouncement = Date.now();
-}
-
-function checkForAnnouncements() {
-  if (!liveNavigation.active || !liveNavigation.nextTurnDistance) return;
-  
-  var timeSinceLastAnnouncement = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
-  var remainingDistance = Math.max(0, liveNavigation.nextTurnDistance - liveNavigation.stepDistance);
-  var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
-  
-  // Announce at specific distances
-  for (var i = 0; i < liveNavigation.alertDistances.length; i++) {
-    var alertDistance = liveNavigation.alertDistances[i];
-    var alertSteps = Math.round(alertDistance / liveNavigation.stepLength);
-    
-    if (remainingSteps <= alertSteps && remainingSteps > 0 && timeSinceLastAnnouncement > 10) {
-      if (alertSteps <= 3) {
-        speak(liveNavigation.nextTurnDirection + " in " + alertSteps + " steps");
-      } else if (alertSteps <= 10) {
-        speak("Prepare to " + liveNavigation.nextTurnDirection.toLowerCase() + " in " + alertSteps + " steps");
-      } else {
-        speak("In " + alertSteps + " steps, " + liveNavigation.nextTurnDirection.toLowerCase());
+    // Draw route on map
+    if (mapReady) {
+      if (routeLine) map.removeLayer(routeLine);
+      let coords;
+      if (typeof d.geometry === 'string') {
+        coords = decodePolyline(d.geometry);
+      } else if (d.geometry && d.geometry.coordinates) {
+        coords = d.geometry.coordinates.map(c => [c[1], c[0]]);
       }
-      liveNavigation.lastAnnouncement = Date.now();
-      break;
+      if (coords) {
+        routeLine = L.polyline(coords, {color:"#e0a800",weight:4,opacity:0.8}).addTo(map);
+        map.fitBounds(routeLine.getBounds(), {padding:[30,30]});
+      }
     }
+
+    buildStepList();
+    curStep = 0;
+    navigating = true;
+
+    // Start live navigation
+    Nav.start({
+      geometry: d.geometry,
+      nav_steps: d.nav_steps,
+      total_distance: d.total_distance
+    });
+
+    status.textContent = "Live navigation active";
+    liveStatus.style.display = "block";
+
+    // Speak summary, then first instruction comes from Nav._tick() postTurn
+    Voice.speak(d.summary + " And now, live navigation has started. You will receive automatic voice directions as you walk.", "urgent");
+
+  } catch(e) {
+    Voice.speak("Failed to get route. " + e.message, "urgent");
+    logError("Navigate error: " + e.message);
+    row.classList.remove("active");
+    row.setAttribute("aria-checked", "false");
+    status.textContent = "Error: " + e.message;
   }
 }
 
-function announceProgress() {
-  if (!liveNavigation.active || !liveNavigation.nextTurnDistance) return;
-  
-  var timeSinceLastAnnouncement = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
-  if (timeSinceLastAnnouncement < 20) return; // Don't interrupt recent announcements
-  
-  var remainingDistance = Math.max(0, liveNavigation.nextTurnDistance - liveNavigation.stepDistance);
-  var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
-  
-  if (remainingSteps > 20 && remainingDistance > 50) {
-    speak("Continue straight for " + remainingSteps + " steps");
-    liveNavigation.lastAnnouncement = Date.now();
+function stopNav() {
+  navigating = false;
+  curStep = -1;
+  navData = [];
+  Nav.stop();
+
+  const row = document.getElementById("nav-toggle");
+  row.classList.remove("active");
+  row.setAttribute("aria-checked", "false");
+  document.getElementById("toggle-status").textContent = "Tap to start live navigation";
+  document.getElementById("nav-panel").classList.remove("visible");
+  document.getElementById("live-status").style.display = "none";
+  Voice.stop();
+  Voice.speak("Navigation stopped.", "urgent");
+}
+
+// ── Step list UI ─────────────────────────────────
+function buildStepList() {
+  const box = document.getElementById("step-list");
+  box.innerHTML = "";
+  navData.forEach((s, i) => {
+    const div = document.createElement("div");
+    div.className = "step-item";
+    div.id = "si-" + i;
+    div.innerHTML =
+      '<div class="snum">Step ' + s.n + '</div>' +
+      '<div class="sinstr">' + s.action + '</div>' +
+      '<div class="smeta">' + Math.round(s.distance||0) + 'm — about ' + (s.step_count||0) + ' steps</div>';
+    div.onclick = () => {
+      if (!Nav.active) {
+        curStep = i;
+        highlightStep(i);
+        Voice.speak("Step " + s.n + ". " + s.action, "normal");
+      }
+    };
+    box.appendChild(div);
+  });
+  document.getElementById("nav-panel").classList.add("visible");
+}
+
+function highlightStep(idx) {
+  document.querySelectorAll(".step-item").forEach((el, i) => {
+    el.classList.toggle("active", i === idx);
+  });
+  const el = document.getElementById("si-" + idx);
+  if (el) el.scrollIntoView({behavior: "smooth", block: "center"});
+
+  if (idx >= 0 && idx < navData.length) {
+    document.getElementById("nav-current").textContent =
+      "Step " + navData[idx].n + " of " + navData.length + ": " + navData[idx].action;
   }
 }
 
-function updateLiveStatus() {
-  if (!liveNavigation.active) return;
-  
-  var liveText = document.getElementById("live-text");
-  var progressInfo = document.getElementById("progress-info");
-  
-  if (curStep >= 0 && curStep < navData.length) {
-    var step = navData[curStep];
-    var remainingDistance = Math.max(0, (step.distance || 0) - liveNavigation.stepDistance);
-    var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
-    
-    liveText.textContent = "Step " + (curStep + 1) + " of " + navData.length + ": " + step.action;
-    
+function repeatStep() {
+  if (!navigating || curStep < 0) return;
+
+  if (Nav.active) {
+    // Re-announce current position context
+    const step = navData[curStep];
+    const remaining = Math.max(0, (step.distance||0) - Nav.segmentWalked);
+    const remainingSteps = Math.round(remaining / Nav.stepLength);
+    const nextDir = step.next_turn_direction || "forward";
+    const nextType = step.next_turn_type || "";
+    const turnPhrase = Nav._turnPhrase(nextDir, nextType);
+
     if (remainingSteps > 0) {
-      progressInfo.textContent = "Continue for " + remainingSteps + " more steps " + 
-        "(" + liveNavigation.totalSteps + " total steps taken)";
+      Voice.speak("You are on step " + (curStep+1) + " of " + navData.length +
+        ", and there are " + remainingSteps + " steps until " + turnPhrase + ".", "urgent");
     } else {
-      progressInfo.textContent = "Approaching next instruction...";
+      Voice.speak("You are approaching the next turn. " + step.action, "urgent");
     }
-  } 
-}
-
-function checkProximity() {
-  if (!navigating || liveNavigation.active || curStep < 0 || curStep >= navData.length - 1) return;
-  var next = navData[curStep + 1];
-  if (!next.lat || !next.lng) return;
-  var d = haversine(curLat, curLng, next.lat, next.lng);
-  if (d < 15) {
-    curStep++;
-    showStep();
-    speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
+  } else {
+    Voice.speak("Step " + navData[curStep].n + ". " + navData[curStep].action, "urgent");
   }
-}
-
-function haversine(lat1, lon1, lat2, lon2) {
-  var R = 6371000, toR = Math.PI / 180;
-  var dLat = (lat2-lat1)*toR, dLon = (lon2-lon1)*toR;
-  var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
-          Math.cos(lat1*toR)*Math.cos(lat2*toR)*
-          Math.sin(dLon/2)*Math.sin(dLon/2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 // ── Map ──────────────────────────────────────────
 function toggleMap() {
-  var w = document.getElementById("map-wrap");
-  if (w.style.display === "block") {
-    w.style.display = "none";
-    return;
-  }
+  const w = document.getElementById("map-wrap");
+  if (w.style.display === "block") { w.style.display = "none"; return; }
   w.style.display = "block";
   if (!mapReady) initMap();
   else map.invalidateSize();
 }
 
+function toggleVoiceLog() {
+  const el = document.getElementById("voice-log");
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
+
 function initMap() {
-  var startLat = curLat || 9.9;
-  var startLng = curLng || 76.95;
+  const startLat = curLat || 9.9, startLng = curLng || 76.95;
   map = L.map("map").setView([startLat, startLng], curLat ? 13 : 10);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution:"OSM/CARTO", maxZoom:19
+    attribution: "OSM/CARTO", maxZoom: 19
   }).addTo(map);
 
   destMarker = L.marker([DEST.lat, DEST.lng]).addTo(map)
-    .bindTooltip("Painavu", {permanent:true, direction:"top"});
+    .bindTooltip("Painavu", {permanent: true, direction: "top"});
 
-  map.on("click", function(e) {
+  map.on("click", e => {
     curLat = e.latlng.lat;
     curLng = e.latlng.lng;
-    console.log(`📍 Map click test position: ${curLat.toFixed(6)}, ${curLng.toFixed(6)}`);
-    const status = `🧪 Test position set: ${curLat.toFixed(5)}, ${curLng.toFixed(5)} (±0m)`;
-    setGPS(status, "ok");
-    logError(""); // Clear errors on new position
+    setGPS("🧪 Test: " + curLat.toFixed(5) + ", " + curLng.toFixed(5), "ok");
     updateMapPos();
-    speak("Position set to " + curLat.toFixed(5) + ", " + curLng.toFixed(5));
-    if (navigating) checkProximity();
+    Voice.speak("Test position set.", "normal");
+
+    // Feed to Nav engine as if GPS updated
+    if (Nav.active) {
+      Nav.onGPS(curLat, curLng, 5);
+    }
   });
 
   mapReady = true;
@@ -1639,114 +1146,69 @@ function updateMapPos() {
     curMarker.setLatLng([curLat, curLng]);
   } else {
     curMarker = L.circleMarker([curLat, curLng], {
-      radius:8, color:"#e0a800", fillColor:"#e0a800",
-      fillOpacity:0.9, weight:2
-    }).addTo(map).bindTooltip("You", {direction:"bottom"});
+      radius: 8, color: "#e0a800", fillColor: "#e0a800",
+      fillOpacity: 0.9, weight: 2
+    }).addTo(map).bindTooltip("You", {direction: "bottom"});
   }
 }
 
 // ── Keyboard ─────────────────────────────────────
-document.addEventListener("keydown", function(e) {
+document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   switch(e.key) {
-    case "ArrowRight": nextStep(); e.preventDefault(); break;
-    case "ArrowLeft": prevStep(); e.preventDefault(); break;
     case "r": case "R": repeatStep(); e.preventDefault(); break;
     case "w": case "W": whereAmI(); e.preventDefault(); break;
     case " ": handleToggle(); e.preventDefault(); break;
-    case "Escape": if(navigating) stopNav(); break;
+    case "Escape": if (navigating) stopNav(); break;
   }
 });
 
-// Enter on toggle
-document.getElementById("nav-toggle").addEventListener("keydown", function(e) {
-  if (e.key === "Enter" || e.key === " ") {
-    handleToggle();
-    e.preventDefault();
-  }
+document.getElementById("nav-toggle").addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " ") { handleToggle(); e.preventDefault(); }
 });
 
 // ── Shake to repeat ──────────────────────────────
 if (window.DeviceMotionEvent) {
-  var lastShake = 0;
-  window.addEventListener("devicemotion", function(e) {
-    var a = e.accelerationIncludingGravity;
+  let lastShake = 0;
+  window.addEventListener("devicemotion", e => {
+    const a = e.accelerationIncludingGravity;
     if (!a) return;
-    if (Math.abs(a.x)+Math.abs(a.y)+Math.abs(a.z) > 45) {
-      var now = Date.now();
+    if (Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z) > 45) {
+      const now = Date.now();
       if (now - lastShake > 2500) { lastShake = now; repeatStep(); }
     }
   });
 }
 
-// ── Device specific optimizations ────────────────
-function optimizeForMobile() {
-  // Prevent zoom on double tap (important for blind users)
-  document.addEventListener('touchstart', function(e) {
-    if (e.touches.length > 1) {
-      e.preventDefault();
-    }
-  });
-  
-  // Prevent context menu on long press
-  document.addEventListener('contextmenu', function(e) {
-    e.preventDefault();
-  });
-  
-  // Add viewport meta for proper mobile rendering
-  const viewport = document.querySelector('meta[name="viewport"]');
-  if (viewport) {
-    viewport.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
-  }
-}
-
-// ── Visibility change handling ───────────────────
-document.addEventListener('visibilitychange', function() {
-  if (document.hidden) {
-    console.log('App backgrounded');
-    // Keep GPS running but reduce update frequency
-  } else {
-    console.log('App foregrounded');
-    if (liveNavigation.active) {
-      // Restart GPS with full accuracy when app comes back
-      startGPSTracking();
-      speak("Navigation resumed");
-    }
+// ── Visibility change ────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && Nav.active) {
+    startGPSTracking();
+    Voice.speak("Navigation resumed.", "normal");
   }
 });
 
 // ── Init ─────────────────────────────────────────
-window.addEventListener("load", function() {
-  optimizeForMobile();
+window.addEventListener("load", () => {
+  // Prevent zoom
+  document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); });
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
   checkHealth();
 
-  // Mobile fallback: one user click can reliably trigger the GPS permission prompt.
-  document.addEventListener("click", function() {
-    if (!gpsInitialized) {
-      enableGPS();
-    }
-  }, { once: true });
-  
-  // Don't start GPS automatically - wait for user interaction
-  console.log("🚀 App initialized. GPS requires user permission.");
-  
-  // Check if GPS is already available (refresh case)
-  if (curLat && curLng && gpsInitialized) {
-    document.getElementById('btn-enable-gps').style.display = 'none';
-    document.getElementById('btn-locate').style.display = 'block';
-    document.querySelector('button[onclick="testGPS()"]').style.display = 'block';
-  }
+  document.addEventListener("click", () => {
+    if (!gpsInitialized) enableGPS();
+  }, {once: true});
 
-  // Initialize wake lock support for live navigation
-  if ('wakeLock' in navigator) {
-    console.log("Wake lock API supported");
-  }
-  
-  setTimeout(function(){
-    speak("Welcome to BlindNav. Your destination is Painavu, Idukki District, Kerala. " +
-          "Press Enable GPS Location first, then Where Am I to hear your location. Toggle the switch to start live navigation. " +
-          "During navigation, you will receive automatic step-by-step voice directions as you walk. " +
-          "For best results, ensure location services are enabled and you have clear sky view.");
+  setTimeout(() => {
+    Voice.speak(
+      "Welcome to BlindNav. Your destination is Painavu, Idukki District, Kerala. " +
+      "First, tap Enable GPS Location. Then tap Where Am I to hear your current location. " +
+      "And then, toggle the switch to start live walking navigation. " +
+      "You will receive automatic step-by-step voice directions as you walk, " +
+      "including reminders before each turn, and alerts if you go off the route.",
+      "urgent"
+    );
   }, 2000);
 });
 </script>
