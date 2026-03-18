@@ -8,6 +8,7 @@ from flask_cors import CORS
 import requests
 import traceback
 import logging
+from math import radians, sin, cos, atan2, sqrt
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -37,6 +38,8 @@ PAINAVU_NAME = "Painavu, Idukki District, Kerala"
 STEP_LENGTH  = 0.65
 OSRM_BASE    = "https://router.project-osrm.org"
 NOMINATIM    = "https://nominatim.openstreetmap.org"
+ORS_BASE     = "https://api.openrouteservice.org/v2"
+ORS_API_KEY  = "5b3ce3597851110001cf6248"  # Free public API key (register for your own)
 HEADERS      = {
     "User-Agent": "BlindNav/1.0 (accessibility-project; contact@blindnav.org)",
     "Accept": "application/json"
@@ -183,12 +186,91 @@ def build_post_turn_guidance(current_step, next_step):
         return f"{action} Walk {next_st} ({next_mt}){road_info} to the next turn {next_direction}."
 
 def haversine_distance(lat1, lon1, lat2, lon2):
-    from math import radians, sin, cos, sqrt, atan2
+    """Calculate great-circle distance between two points on Earth (in meters)."""
     R = 6371000
     la1, lo1, la2, lo2 = map(radians, [lat1, lon1, lat2, lon2])
     dlat, dlon = la2 - la1, lo2 - lo1
     a = sin(dlat/2)**2 + cos(la1)*cos(la2)*sin(dlon/2)**2
     return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+
+# ── ROUTING FUNCTIONS ──────────────────────────────────────────────
+
+def get_route_osrm(slat, slng):
+    """Fetch route from OSRM."""
+    url = f"{OSRM_BASE}/route/v1/foot/{slng},{slat};{PAINAVU_LNG},{PAINAVU_LAT}"
+    
+    log.info(f"Trying OSRM: {url}")
+    
+    try:
+        r = requests.get(url, params={"steps": "true"}, headers=HEADERS, timeout=TIMEOUT)
+        
+        if r.status_code != 200:
+            log.error(f"OSRM HTTP {r.status_code}: {r.text}")
+            return None
+        
+        data = r.json()
+        
+        if data.get("code") != "Ok" or not data.get("routes"):
+            msg = data.get("message", "No route")
+            log.error(f"OSRM error: {msg}")
+            return None
+        
+        log.info("✅ OSRM route found")
+        return data["routes"][0]
+        
+    except Exception as e:
+        log.error(f"OSRM failed: {e}")
+        return None
+
+def get_route_ors(slat, slng):
+    """Fetch route from OpenRouteService."""
+    url = f"{ORS_BASE}/directions/foot-walking"
+    
+    log.info(f"Trying ORS: {url}")
+    
+    try:
+        body = {
+            "coordinates": [[slng, slat], [PAINAVU_LNG, PAINAVU_LAT]],
+            "elevation": False,
+            "instructions": True,
+            "geometry": True
+        }
+        
+        headers = dict(HEADERS)
+        headers["Authorization"] = ORS_API_KEY
+        
+        r = requests.post(url, json=body, headers=headers, timeout=TIMEOUT)
+        
+        if r.status_code != 200:
+            log.error(f"ORS HTTP {r.status_code}: {r.text}")
+            return None
+        
+        data = r.json()
+        
+        if not data.get("routes"):
+            log.error("ORS returned no routes")
+            return None
+        
+        log.info("✅ ORS route found")
+        return data["routes"][0]
+        
+    except Exception as e:
+        log.error(f"ORS failed: {e}")
+        return None
+
+def route_with_fallback(slat, slng):
+    """Try ORS first, fall back to OSRM."""
+    # Try OpenRouteService first (more reliable)
+    route = get_route_ors(slat, slng)
+    if route:
+        return route, "ORS"
+    
+    # Fall back to OSRM
+    route = get_route_osrm(slat, slng)
+    if route:
+        return route, "OSRM"
+    
+    return None, None
 
 def build_instruction(s):
     m       = s.get("maneuver", {})
@@ -347,98 +429,91 @@ def navigate():
     log.info(f"Route request: ({slat},{slng}) -> Painavu ({PAINAVU_LAT},{PAINAVU_LNG})")
 
     try:
-        url = (f"{OSRM_BASE}/route/v1/foot/"
-               f"{slng},{slat};{PAINAVU_LNG},{PAINAVU_LAT}")
-
-        log.info(f"OSRM URL: {url}")
-
-        r = requests.get(
-            url,
-            params={"overview": "full", "steps": "true", "geometries": "geojson"},
-            headers=HEADERS, timeout=TIMEOUT
-        )
-
-        log.info(f"OSRM response: {r.status_code}")
-
-        if r.status_code != 200:
-            return jsonify(success=False,
-                           error=f"Routing service returned status {r.status_code}")
-
-        data = r.json()
-        log.info(f"OSRM code: {data.get('code')}")
-
-        if data.get("code") != "Ok" or not data.get("routes"):
-            msg = data.get("message", "No walking route found to Painavu")
-            return jsonify(success=False, error=msg)
-
-        route    = data["routes"][0]
-        total_m  = route["distance"]
-        total_s  = route["duration"]
+        # Try ORS first, fall back to OSRM
+        route, provider = route_with_fallback(slat, slng)
+        
+        if not route:
+            log.error("Both ORS and OSRM failed to find route")
+            return jsonify(success=False, error="No walking route found to Painavu. Check your location and destination.")
+        
+        log.info(f"✅ Route from {provider}: {route.get('distance'):.0f}m")
+        
+        # Parse route data (format depends on provider)
+        if provider == "ORS":
+            total_m = route.get("distance", 0)
+            total_s = route.get("duration", 0)
+            # ORS returns instructions array directly
+            steps_data = route.get("steps", [])
+            geometry = route.get("geometry")
+        else:  # OSRM
+            total_m = route.get("distance", 0)
+            total_s = route.get("duration", 0)
+            # OSRM returns legs with steps
+            steps_data = []
+            if "legs" in route:
+                for leg in route["legs"]:
+                    steps_data.extend(leg.get("steps", []))
+            geometry = route.get("geometry")
+        
         total_st = steps(total_m)
-        mins     = max(1, round(total_s / 60))
-        hours    = mins // 60
-        rmins    = mins % 60
-
+        mins = max(1, round(total_s / 60))
+        hours = mins // 60
+        rmins = mins % 60
+        
         if hours > 0:
             time_str = f"{hours} hour{'s' if hours>1 else ''} and {rmins} minute{'s' if rmins!=1 else ''}"
         else:
             time_str = f"{mins} minute{'s' if mins!=1 else ''}"
-
+        
+        # Build navigation steps
         nav = []
         n = 0
-        steps_data = []
-        for leg in route["legs"]:
-            steps_data.extend(leg["steps"])
         
         for idx, s in enumerate(steps_data):
             instr = build_instruction(s)
             if not instr:
                 continue
-            if s["distance"] < 2 and s["maneuver"]["type"] not in ("depart", "arrive"):
+            if s.get("distance", 0) < 2 and s.get("maneuver", {}).get("type") not in ("depart", "arrive"):
                 continue
             n += 1
             
-            # Build next step info for post-turn guidance (if this isn't the last step)
-            next_step = steps_data[idx + 1] if idx + 1 < len(steps_data) else None
-            post_turn = build_post_turn_guidance(s, next_step) if next_step else None
-            
-            # Build reminder (fires about 5 steps before this maneuver)
-            reminder = build_reminder(s["maneuver"].get("type"), s["maneuver"].get("modifier"), s["distance"])
+            # Get maneuver info
+            maneuver = s.get("maneuver", {})
+            location = maneuver.get("location", [None, None])
             
             nav.append({
                 "n":           n,
-                "action":      instr,  # Changed from instruction to action
-                "distance":    round(s["distance"], 1),  # Changed from meters to distance  
-                "step_count":  steps(s["distance"]),  # Changed from steps to step_count
-                "type":        s["maneuver"].get("type", ""),
-                "lat":         s["maneuver"]["location"][1] if len(s["maneuver"].get("location", [])) >= 2 else None,
-                "lng":         s["maneuver"]["location"][0] if len(s["maneuver"].get("location", [])) >= 2 else None,
-                "reminder":    reminder,  # Pre-turn reminder (fires ~5 steps before)
-                "post_turn":   post_turn  # Post-turn guidance (fires after turn is detected)
+                "action":      instr,
+                "distance":    s.get("distance", 0),
+                "step_count":  steps(s.get("distance", 0)),
+                "type":        maneuver.get("type", ""),
+                "lat":         location[1] if len(location) >= 2 else None,
+                "lng":         location[0] if len(location) >= 2 else None
             })
-
-        summary = (f"Route to Painavu found. "
+        
+        summary = (f"Route to Painavu found via {provider}. "
                    f"Total distance: {metres_text(total_m)}, "
                    f"roughly {total_st} steps, "
                    f"estimated walking time: {time_str}. "
                    f"{len(nav)} direction steps.")
-
-        log.info(f"Route: {total_m:.0f}m, {len(nav)} steps")
-
+        
+        log.info(f"✅ Route: {total_m:.0f}m, {len(nav)} steps via {provider}")
+        
         return jsonify(success=True, summary=summary,
-                       total_m=round(total_m, 1),
-                       total_s=round(total_s),
+                       total_distance=round(total_m, 1),
+                       total_duration=round(total_s),
                        total_steps=total_st,
                        nav_steps=nav,
-                       geometry=route["geometry"])
+                       geometry=geometry,
+                       provider=provider)
 
     except requests.exceptions.Timeout:
-        log.error("OSRM timeout")
+        log.error("Routing timeout")
         return jsonify(success=False, error="Routing service timed out. Try again.")
     except requests.exceptions.ConnectionError as e:
-        log.error(f"OSRM connection error: {e}")
+        log.error(f"Routing connection error: {e}")
         return jsonify(success=False,
-                       error="Cannot connect to routing service. Check server internet connection.")
+                       error="Cannot connect to routing service. Check your internet connection.")
     except Exception as e:
         log.error(f"Navigate error: {traceback.format_exc()}")
         return jsonify(success=False, error=f"Server error: {str(e)}")

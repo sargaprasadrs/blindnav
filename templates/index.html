@@ -487,6 +487,31 @@ kbd{
 const synth = window.speechSynthesis;
 const API_BASE = window.location.origin;
 
+// ── Error Handling ──────────────────────────────
+function logError(msg) {
+  const errorLog = document.getElementById("error-log");
+  if (!errorLog) return;
+  
+  const timestamp = new Date().toLocaleTimeString();
+  const line = `[${timestamp}] ${msg}`;
+  
+  console.error(line);
+  errorLog.style.display = "block";
+  errorLog.textContent = line + "\n" + (errorLog.textContent || "");
+  
+  // Keep only last 10 errors
+  const lines = errorLog.textContent.split("\n").slice(0, 10);
+  errorLog.textContent = lines.join("\n");
+}
+
+function clearError() {
+  const errorLog = document.getElementById("error-log");
+  if (errorLog) {
+    errorLog.textContent = "";
+    errorLog.style.display = "none";
+  }
+}
+
 const DEST = {lat:9.8453, lng:76.9730};
 
 let curLat = null, curLng = null;
@@ -512,7 +537,8 @@ let liveNavigation = {
   wakeLock: null,
   minMovement: 3, // Minimum meters moved to register as movement (increased for GPS noise)
   maxAccuracy: 100, // Accept GPS readings up to 100m accuracy
-  lastGoodPosition: null // Store last GPS position with accuracy
+  lastGoodPosition: null, // Store last GPS position with accuracy
+  polyline: null // Route geometry as [lat, lng] points
 }
 
 // ── Health check ─────────────────────────────────
@@ -891,7 +917,7 @@ async function apiPost(url, body, retries = 2) {
   
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      console.log(`📡 API call attempt ${attempt + 1} to ${endpoint}`);
+      console.log(`📡 API call attempt ${attempt + 1} to ${endpoint}`, body);
       const r = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -902,16 +928,20 @@ async function apiPost(url, body, retries = 2) {
       });
       
       if (!r.ok) {
+        const errorText = await r.text();
+        console.error(`❌ HTTP error response: ${errorText}`);
+        logError(`HTTP ${r.status} from ${endpoint}: ${errorText}`);
         throw new Error(`HTTP ${r.status} ${r.statusText} from ${endpoint}`);
       }
       
       const data = await r.json();
-      console.log(`✅ API call successful to ${endpoint}`);
+      console.log(`✅ API call successful to ${endpoint}:`, data);
       return data;
       
     } catch (e) {
       console.error(`❌ API call attempt ${attempt + 1} failed:`, e);
       lastError = e;
+      logError(`API ${url} attempt ${attempt + 1} failed: ${e.message}`);
       
       if (attempt < retries - 1) {
         console.log(`🔄 Retrying API call in 1 second...`);
@@ -1019,20 +1049,41 @@ async function startNav() {
 
     navData = d.nav_steps;
     document.getElementById("nav-summary").textContent = d.summary;
+    
+    console.log(`✅ Route obtained from ${d.provider}: ${d.total_distance}m via ${d.nav_steps.length} steps`);
+
+    // Store route geometry for polyline-based step tracking
+    var routeData = {
+      geometry: d.geometry,
+      nav_steps: d.nav_steps,
+      total_distance: d.total_distance
+    };
 
     if (mapReady && d.geometry) {
       if (routeLine) map.removeLayer(routeLine);
-      var coords = d.geometry.coordinates.map(function(c){return [c[1],c[0]]});
-      routeLine = L.polyline(coords, {color:"#e0a800",weight:4,opacity:0.8}).addTo(map);
-      map.fitBounds(routeLine.getBounds(), {padding:[30,30]});
+      
+      // Handle both GeoJSON and encoded polyline formats
+      var coords;
+      if (typeof d.geometry === 'string') {
+        // Encoded polyline
+        coords = decodePolyline(d.geometry).map(function(c){return [c[0], c[1]]});
+      } else if (d.geometry.coordinates) {
+        // GeoJSON: convert [lng, lat] to [lat, lng]
+        coords = d.geometry.coordinates.map(function(c){return [c[1], c[0]]});
+      }
+      
+      if (coords) {
+        routeLine = L.polyline(coords, {color:"#e0a800",weight:4,opacity:0.8}).addTo(map);
+        map.fitBounds(routeLine.getBounds(), {padding:[30,30]});
+      }
     }
 
     buildStepList();
     curStep = 0;
     navigating = true;
     
-    // Start live navigation
-    initLiveNavigation(d);
+    // Start live navigation with route geometry
+    initLiveNavigation(routeData);
     
     status.textContent = "Live navigation active";
     liveStatus.style.display = "block";
@@ -1142,6 +1193,76 @@ function goToStep(i) {
   speak("Step " + navData[curStep].n + ". " + navData[curStep].action);
 }
 
+// ── Polyline Decoder (Google's polyline algorithm) ────────
+function decodePolyline(encoded) {
+  var inv = 1.0 / 1e5;
+  var decoded = [];
+  var previous = [0, 0];
+  var i = 0;
+  
+  while (i < encoded.length) {
+    var ll = [0, 0];
+    for (var j = 0; j < 2; j++) {
+      var shift = 0;
+      var result = 0;
+      var byte = 0;
+      do {
+        byte = encoded.charCodeAt(i++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      ll[j] = previous[j] + (result & 1 ? ~(result >> 1) : result >> 1);
+      previous[j] = ll[j];
+    }
+    decoded.push([ll[0] * inv, ll[1] * inv]);
+  }
+  return decoded;
+}
+
+// Find closest point on polyline to current position
+function findClosestPointOnPolyline(lat, lng, polyline) {
+  var closest = null;
+  var minDist = Infinity;
+  var closestSegmentIndex = -1;
+  
+  for (var i = 0; i < polyline.length - 1; i++) {
+    var p1 = polyline[i];
+    var p2 = polyline[i + 1];
+    var closest_on_segment = projectPointOnSegment(lat, lng, p1[0], p1[1], p2[0], p2[1]);
+    
+    if (closest_on_segment.distance < minDist) {
+      minDist = closest_on_segment.distance;
+      closest = closest_on_segment.point;
+      closestSegmentIndex = i;
+    }
+  }
+  
+  return {point: closest, distance: minDist, segmentIndex: closestSegmentIndex};
+}
+
+// Project point onto line segment
+function projectPointOnSegment(px, py, x1, y1, x2, y2) {
+  var dx = x2 - x1;
+  var dy = y2 - y1;
+  var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+  var projx = x1 + t * dx;
+  var projy = y1 + t * dy;
+  var dist = haversine(py, px, projy, projx);
+  return {point: [projy, projx], distance: dist, t: t};
+}
+
+// Calculate distance along polyline from segment to target segment
+function distanceAlongPolyline(polyline, fromSegmentIndex, toSegmentIndex) {
+  var distance = 0;
+  
+  // Start from the segment after fromSegmentIndex
+  for (var i = fromSegmentIndex + 1; i <= toSegmentIndex && i < polyline.length; i++) {
+    distance += haversine(polyline[i-1][0], polyline[i-1][1], polyline[i][0], polyline[i][1]);
+  }
+  
+  return distance;
+}
+
 // ── Live Navigation System ──────────────────────
 function initLiveNavigation(routeData) {
   liveNavigation.active = true;
@@ -1151,6 +1272,17 @@ function initLiveNavigation(routeData) {
   liveNavigation.currentInstruction = navData[0];
   liveNavigation.lastAnnouncement = Date.now();
   liveNavigation.courseDeviation = 0;
+  
+  // Decode and store route polyline
+  if (routeData.geometry && routeData.geometry.coordinates) {
+    // GeoJSON format: convert [lng, lat] to [lat, lng]
+    liveNavigation.polyline = routeData.geometry.coordinates.map(c => [c[1], c[0]]);
+    console.log("✅ Route polyline decoded:", liveNavigation.polyline.length, "points");
+  } else if (routeData.geometry) {
+    // Encoded polyline string
+    liveNavigation.polyline = decodePolyline(routeData.geometry);
+    console.log("✅ Route polyline decoded:", liveNavigation.polyline.length, "points");
+  }
   
   // Restart GPS with live navigation settings for better accuracy
   startGPSTracking();
@@ -1230,7 +1362,7 @@ function updateLiveNavigation(newLat, newLng, accuracy) {
   );
   
   // Only update if movement is above noise threshold (reduces GPS noise)
-  if (moved >= liveNavigation.minMovement) { // Increased minimum movement for GPS noise filtering
+  if (moved >= liveNavigation.minMovement) {
     // Update step counters
     liveNavigation.stepDistance += moved;
     var newSteps = Math.floor(liveNavigation.stepDistance / liveNavigation.stepLength);
@@ -1243,11 +1375,8 @@ function updateLiveNavigation(newLat, newLng, accuracy) {
       }
     }
     
-    // Check if reached current step destination
+    // Check if reached current step destination using polyline logic
     checkStepCompletion(newLat, newLng);
-    
-    // Check course deviation
-    checkCourseDeviation(newLat, newLng);
     
     // Update position with accuracy
     liveNavigation.lastPosition = {lat: newLat, lng: newLng, accuracy: accuracy};
@@ -1284,32 +1413,61 @@ function debugGPS() {
 }
 
 function checkStepCompletion(lat, lng) {
-  if (curStep < 0 || curStep >= navData.length) return;
+  if (curStep < 0 || curStep >= navData.length || !liveNavigation.polyline) return;
   
   var currentStep = navData[curStep];
-  if (!currentStep || !currentStep.lat || !currentStep.lng) return;
+  if (!currentStep) return;
   
-  var distanceToStep = haversine(lat, lng, currentStep.lat, currentStep.lng);
+  // Find closest point on the overall route polyline
+  var closestOnRoute = findClosestPointOnPolyline(lat, lng, liveNavigation.polyline);
   
-  // Dynamic completion distance based on GPS accuracy
-  var completionDistance = 15; // Default 15 meters
-  if (liveNavigation.lastGoodPosition && liveNavigation.lastGoodPosition.accuracy) {
-    // Increase completion distance for poor GPS accuracy
-    completionDistance = Math.max(15, Math.min(30, liveNavigation.lastGoodPosition.accuracy * 1.5));
+  if (!closestOnRoute.point) return;
+  
+  console.log(`Closest point on route: segment ${closestOnRoute.segmentIndex}, distance from route: ${closestOnRoute.distance.toFixed(1)}m`);
+  
+  // Alert user if they're too far off the route
+  if (closestOnRoute.distance > 50) {
+    var timeSinceLastAlert = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
+    if (timeSinceLastAlert > 30) {
+      speak("Alert: You may be off the route. Check your position and try " + currentStep.action.toLowerCase());
+      liveNavigation.lastAnnouncement = Date.now();
+    }
   }
   
-  console.log(`Distance to step ${curStep + 1}: ${distanceToStep.toFixed(1)}m (completion: ${completionDistance.toFixed(1)}m)`);
-  
-  // If within completion distance of step point, advance
-  if (distanceToStep < completionDistance) {
-    advanceToNextStep();
+  // Now find the maneuver point for current step
+  if (!currentStep.lat || !currentStep.lng) {
+    console.log("Current step has no lat/lng, skipping completion check");
+    return;
   }
   
-  // Alternative: check if we've walked far enough in the right direction
-  else if (liveNavigation.stepDistance >= (currentStep.distance * 0.8)) {
-    // If we've walked 80% of the expected distance, also advance
-    console.log(`Advancing step based on distance walked: ${liveNavigation.stepDistance.toFixed(1)}m of ${currentStep.distance.toFixed(1)}m`);
+  // Find the polyline segment closest to the current step's maneuver
+  var stepOnRoute = findClosestPointOnPolyline(currentStep.lat, currentStep.lng, liveNavigation.polyline);
+  var currentSegmentIndex = stepOnRoute.segmentIndex;
+  
+  console.log(`Current step maneuver at segment ${currentSegmentIndex}`);
+  
+  // If the closest point on route is beyond the current step's maneuver, advance
+  if (closestOnRoute.segmentIndex >= currentSegmentIndex) {
+    console.log(`User has passed step maneuver: current segment ${closestOnRoute.segmentIndex} >= maneuver segment ${currentSegmentIndex}`);
     advanceToNextStep();
+    return;
+  }
+  
+  // Alternative: distance along route to next maneuver
+  var nextStep = navData[curStep + 1];
+  if (nextStep && nextStep.lat && nextStep.lng) {
+    var nextStepOnRoute = findClosestPointOnPolyline(nextStep.lat, nextStep.lng, liveNavigation.polyline);
+    var distanceToNext = distanceAlongPolyline(liveNavigation.polyline, closestOnRoute.segmentIndex, nextStepOnRoute.segmentIndex);
+    var stepsToNext = Math.round(distanceToNext / liveNavigation.stepLength);
+    
+    console.log(`Distance along route to next maneuver: ${distanceToNext.toFixed(1)}m (${stepsToNext} steps)`);
+    
+    // Advance when very close to next maneuver
+    if (distanceToNext < 15) {
+      console.log("Close to next maneuver, advancing...");
+      advanceToNextStep();
+      return;
+    }
   }
 }
 
@@ -1393,25 +1551,6 @@ function announceProgress() {
   }
 }
 
-function checkCourseDeviation(lat, lng) {
-  // Simple course deviation check - could be enhanced with more sophisticated logic
-  if (curStep < 0 || curStep >= navData.length) return;
-  
-  var currentStep = navData[curStep];
-  if (!currentStep.lat || !currentStep.lng) return;
-  
-  var distanceToRoute = haversine(lat, lng, currentStep.lat, currentStep.lng);
-  
-  // If more than 50 meters off route, give correction
-  if (distanceToRoute > 50) {
-    var timeSinceLastAlert = (Date.now() - liveNavigation.lastAnnouncement) / 1000;
-    if (timeSinceLastAlert > 30) {
-      speak("Alert: You may be off course. The correct direction is " + currentStep.action.toLowerCase());
-      liveNavigation.lastAnnouncement = Date.now();
-    }
-  }
-}
-
 function updateLiveStatus() {
   if (!liveNavigation.active) return;
   
@@ -1422,7 +1561,6 @@ function updateLiveStatus() {
     var step = navData[curStep];
     var remainingDistance = Math.max(0, (step.distance || 0) - liveNavigation.stepDistance);
     var remainingSteps = Math.round(remainingDistance / liveNavigation.stepLength);
-    var totalStepsInSegment = Math.round((step.distance || 0) / liveNavigation.stepLength);
     
     liveText.textContent = "Step " + (curStep + 1) + " of " + navData.length + ": " + step.action;
     
@@ -1435,7 +1573,6 @@ function updateLiveStatus() {
   } 
 }
 
-// ── Legacy Auto-advance (fallback) ──────────────
 function checkProximity() {
   if (!navigating || liveNavigation.active || curStep < 0 || curStep >= navData.length - 1) return;
   var next = navData[curStep + 1];
@@ -1483,8 +1620,12 @@ function initMap() {
   map.on("click", function(e) {
     curLat = e.latlng.lat;
     curLng = e.latlng.lng;
-    setGPS("Simulated: " + curLat.toFixed(5) + ", " + curLng.toFixed(5), "ok");
+    console.log(`📍 Map click test position: ${curLat.toFixed(6)}, ${curLng.toFixed(6)}`);
+    const status = `🧪 Test position set: ${curLat.toFixed(5)}, ${curLng.toFixed(5)} (±0m)`;
+    setGPS(status, "ok");
+    logError(""); // Clear errors on new position
     updateMapPos();
+    speak("Position set to " + curLat.toFixed(5) + ", " + curLng.toFixed(5));
     if (navigating) checkProximity();
   });
 
