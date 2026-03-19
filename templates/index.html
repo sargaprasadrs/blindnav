@@ -365,6 +365,7 @@ const Nav = {
   resetAnnouncementFlags() {
     this.announced = {
       postTurn: false,
+      reminder20: false,
       reminder10: false,
       reminder3: false,
       periodicAt: 0,
@@ -421,6 +422,23 @@ const Nav = {
         Voice.speak("You are very close to Painavu, and your destination is just ahead.", "urgent");
         if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
       }
+      return;
+    }
+    // Detect difficult turn
+    const isHardTurn =
+      (step.next_turn_direction || "").includes("sharp") ||
+      (step.next_turn_direction || "").includes("back") ||
+      (step.next_turn_type === "uturn") ||
+      (step.next_turn_direction === "sharply left") ||
+      (step.next_turn_direction === "sharply right") ||
+      (step.next_turn_direction === "back around");
+
+    // ── EARLY WARNING for hard turns (~20 steps) ──
+    if (isHardTurn && !this.announced.reminder20 && remainingSteps <= 22 && remainingSteps > 12) {
+      this.announced.reminder20 = true;
+      const turnWord = this._turnPhrase(nextDir, nextType);
+      Voice.speak("Attention, in about 20 steps, " + turnWord + ".", "normal");
+      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
       return;
     }
 

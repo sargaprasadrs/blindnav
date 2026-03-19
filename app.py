@@ -32,8 +32,8 @@ def internal_error(error):
 
 
 # ── FIXED DESTINATION ─────────────────────────────────────────────────
-PAINAVU_LAT = 9.8465
-PAINAVU_LNG = 76.9469
+PAINAVU_LAT = 9.853500
+PAINAVU_LNG = 76.947520
 PAINAVU_NAME = "Painavu, Idukki District, Kerala"
 
 # ── CONFIG ────────────────────────────────────────────────────────────
